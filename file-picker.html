@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>MoonReader</title>
+  <style>
+    body {
+      background: #111;
+      color: #eee;
+      font-family: sans-serif;
+      text-align: center;
+      padding-top: 100px;
+    }
+
+    button {
+      font-size: 18px;
+      padding: 10px 20px;
+      cursor: pointer;
+    }
+  </style>
+</head>
+<body>
+  <h1>📄 MoonReader</h1>
+  <p>Select a PDF to open</p>
+  <button id="open-pdf">Open PDF</button>
+
+  <script>
+  const openBtn = document.getElementById('open-pdf');
+
+  openBtn.addEventListener('click', async () => {
+    const filePath = await window.electronAPI.selectPDF?.();
+    if (filePath) {
+      window.location.href = `web/viewer.html?file=${encodeURIComponent(filePath)}`;
+    }
+  });
+
+  // ✅ Updated: add console logs for debugging
+  window.electronAPI?.onOpenPDF((filePath) => {
+    console.log('📥 Received PDF file path from main.js:', filePath);
+    if (filePath) {
+      const formatted = filePath.startsWith('file://') ? filePath : `file://${filePath.replace(/\\/g, '/')}`;
+      console.log('🔗 Redirecting to viewer with:', formatted);
+      window.location.href = `web/viewer.html?file=${encodeURIComponent(formatted)}`;
+    }
+  });
+</script>
+
+</body>
+</html>

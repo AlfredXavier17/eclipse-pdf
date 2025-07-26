@@ -1,0 +1,47 @@
+{
+  "name": "moonreader",
+  "version": "1.0.0",
+  "main": "main.js",
+  "description": "Minimal PDF reader with dark mode",
+  "scripts": {
+    "start": "electron .",
+    "pack": "electron-builder --dir",
+    "dist": "electron-builder"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "devDependencies": {
+    "electron": "^37.2.3",
+    "electron-builder": "^26.0.12"
+  },
+  "build": {
+    "appId": "com.yourname.moonreader",
+    "productName": "MoonReader",
+    "fileAssociations": [
+      {
+        "ext": "pdf",
+        "name": "PDF Document",
+        "description": "Open PDF with MoonReader",
+        "role": "Viewer"
+      }
+    ],
+    "win": {
+      "target": "nsis",
+      "signAndEditExecutable": false
+    },
+    "nsis": {
+      "perMachine": true
+    },
+    "asarUnpack": [
+      "web/pdf.worker.mjs",
+      "web/pdf.mjs"
+    ],
+    "extraFiles": [
+      {
+        "from": "web/pdf.worker.mjs",
+        "to": "pdf.worker.mjs"
+      }
+    ]
+  }
+}
