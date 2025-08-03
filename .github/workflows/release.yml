@@ -1,0 +1,39 @@
+name: Build and Release MoonReader
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    strategy:
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install dependencies
+        run: npm install
+
+      - name: Build app
+        run: |
+          if [[ "${{ matrix.os }}" == "windows-latest" ]]; then
+            npm run dist -- --win
+          else
+            npm run dist -- --linux
+          fi
+
+      - name: Upload release artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: moonreader-${{ matrix.os }}
+          path: dist/*
