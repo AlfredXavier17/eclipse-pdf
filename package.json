@@ -16,8 +16,9 @@
     "electron-builder": "^26.0.12"
   },
   "build": {
-    "appId": "com.yourname.moonreader",
+    "appId": "com.moonreader.app",
     "productName": "MoonReader",
+    "icon": "icon", 
     "fileAssociations": [
       {
         "ext": "pdf",
@@ -28,20 +29,20 @@
     ],
     "win": {
       "target": "nsis",
+      "icon": "icon.ico",
       "signAndEditExecutable": false
+    },
+    "mac": {
+      "target": "dmg",
+      "icon": "icon.icns"
+    },
+    "linux": {
+      "target": ["AppImage", "deb"],
+      "icon": "icon.png",
+      "category": "Utility"
     },
     "nsis": {
       "perMachine": true
-    },
-    "asarUnpack": [
-      "web/pdf.worker.mjs",
-      "web/pdf.mjs"
-    ],
-    "extraFiles": [
-      {
-        "from": "web/pdf.worker.mjs",
-        "to": "pdf.worker.mjs"
-      }
-    ]
+    }
   }
 }

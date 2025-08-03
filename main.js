@@ -8,12 +8,12 @@ let pdfToOpen = null;
 for (const arg of process.argv) {
   if (arg.toLowerCase().endsWith('.pdf')) {
     pdfToOpen = `file://${arg.replace(/\\/g, '/')}`;
-    console.log('📄 PDF to open:', pdfToOpen); // terminal debug
+    console.log('📄 PDF to open:', pdfToOpen);
     break;
   }
 }
 
-// ✅ STEP 2: Allow manual file picking from the "Open PDF" button
+// ✅ STEP 2: File picker via preload bridge
 ipcMain.handle('select-pdf', async () => {
   const result = await dialog.showOpenDialog({
     properties: ['openFile'],
@@ -23,11 +23,12 @@ ipcMain.handle('select-pdf', async () => {
   return `file://${result.filePaths[0].replace(/\\/g, '/')}`;
 });
 
-// ✅ STEP 3: Create the main window
-app.whenReady().then(() => {
+// ✅ STEP 3: Create the app window
+function createWindow() {
   mainWindow = new BrowserWindow({
     width: 1200,
     height: 800,
+    icon: path.join(__dirname, 'icon.ico'), // ✅ Use .ico for Windows builds
     webPreferences: {
       preload: path.join(__dirname, 'preload.js'),
       contextIsolation: true,
@@ -38,17 +39,22 @@ app.whenReady().then(() => {
 
   mainWindow.loadFile('file-picker.html');
 
-  // ✅ Enable DevTools to see console output in the app
-  mainWindow.webContents.openDevTools();
-
-  // ✅ After UI loads, send file path if app was launched with a file
   mainWindow.webContents.once('did-finish-load', () => {
     if (pdfToOpen) {
       mainWindow.webContents.send('open-pdf', pdfToOpen);
     }
   });
-});
+}
 
+// ✅ Launch
+app.whenReady().then(createWindow);
+
+// ✅ Windows/Linux quit
 app.on('window-all-closed', () => {
   if (process.platform !== 'darwin') app.quit();
+});
+
+// ✅ macOS re-open behavior
+app.on('activate', () => {
+  if (BrowserWindow.getAllWindows().length === 0) createWindow();
 });

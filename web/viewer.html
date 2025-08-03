@@ -60,8 +60,25 @@ See https://github.com/adobe-type-tools/cmap-resources
 <script type="module">
   import * as pdfjsLib from './pdf.mjs';
 
-  // ✅ Set an empty string to disable loading worker script
-  pdfjsLib.GlobalWorkerOptions.workerSrc = '';
+  const isPackaged = window.location.pathname.includes('app.asar');
+  if (isPackaged) {
+    
+    const extraFilesPath = '../../../pdf.worker.mjs';
+    const asarUnpackPath = '../app.asar.unpacked/web/pdf.worker.mjs';
+    
+    // Test if extraFiles version exists, otherwise use asarUnpack version
+    fetch(extraFilesPath).then(response => {
+      if (response.ok) {
+        pdfjsLib.GlobalWorkerOptions.workerSrc = extraFilesPath;
+      } else {
+        pdfjsLib.GlobalWorkerOptions.workerSrc = asarUnpackPath;
+      }
+    }).catch(() => {
+      pdfjsLib.GlobalWorkerOptions.workerSrc = asarUnpackPath;
+    });
+  } else {
+    pdfjsLib.GlobalWorkerOptions.workerSrc = './pdf.worker.mjs';
+  }
   window.pdfjsLib = pdfjsLib;
 </script>
 

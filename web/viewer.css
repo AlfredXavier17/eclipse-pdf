@@ -6449,6 +6449,5 @@ body.sepia canvas {
 
 body.warm canvas {
   filter: brightness(1.15) sepia(0.8) hue-rotate(-10deg) contrast(0.9) !important;
-} */
- /* === Simulated PDF Themes — Filter-safe ===
+} 
 
