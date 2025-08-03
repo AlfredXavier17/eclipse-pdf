@@ -9,7 +9,10 @@
     "dist": "electron-builder"
   },
   "keywords": [],
-  "author": "",
+  "author": {
+  "name": "Alfred Xavier",
+  "email": "alfred@example.com"
+},
   "license": "ISC",
   "devDependencies": {
     "app-builder-bin": "^5.0.0-alpha.12",
