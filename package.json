@@ -10,9 +10,9 @@
   },
   "keywords": [],
   "author": {
-  "name": "Alfred Xavier",
-  "email": "alfred@example.com"
-},
+    "name": "Alfred Xavier",
+    "email": "alfred@example.com"
+  },
   "license": "ISC",
   "devDependencies": {
     "app-builder-bin": "^5.0.0-alpha.12",
@@ -54,5 +54,8 @@
     "nsis": {
       "perMachine": true
     }
+  },
+  "dependencies": {
+    "axios": "^1.11.0"
   }
 }
