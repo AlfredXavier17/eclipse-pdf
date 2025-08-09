@@ -17099,22 +17099,27 @@ document.addEventListener("DOMContentLoaded", () => {
     const theme = themeSelect.value;
     const brightness = parseFloat(brightnessSlider.value);
 
+    let filter = "";
+    if (theme === "dark") {
+      filter = `invert(100%) hue-rotate(180deg) brightness(${brightness}) contrast(1.2)`;
+    } else if (theme === "sepia") {
+      filter = `sepia(0.9) hue-rotate(25deg) brightness(${0.9 * brightness}) saturate(1.2)`;
+    } else if (theme === "soft-dark") {
+      filter = `invert(90%) hue-rotate(210deg) brightness(${brightness}) contrast(1.1)`;
+    } else if (theme === "forest") {
+      filter = `invert(80%) sepia(0.5) hue-rotate(75deg) saturate(1.2) brightness(${0.8 * brightness})`;
+    } else {
+      filter = "none";
+    }
+
+    // Apply to main PDF pages
     viewer.querySelectorAll(".page canvas").forEach(canvas => {
-      let filter = "";
-
-      if (theme === "dark") {
-        filter = `invert(100%) hue-rotate(180deg) brightness(${brightness}) contrast(1.2)`;
-      } else if (theme === "sepia") {
-        filter = `sepia(0.9) hue-rotate(25deg) brightness(${0.9 * brightness}) saturate(1.2)`;
-      } else if (theme === "soft-dark") {
-        filter = `invert(90%) hue-rotate(210deg) brightness(${brightness}) contrast(1.1)`;
-      } else if (theme === "forest") {
-        filter = `invert(80%) sepia(0.5) hue-rotate(75deg) saturate(1.2) brightness(${0.8 * brightness})`;
-      } else {
-        filter = "none";
-      }
-
       canvas.style.filter = filter;
+    });
+
+    // Apply to thumbnails
+    document.querySelectorAll("#thumbnailView .thumbnailImage").forEach(img => {
+      img.style.filter = filter;
     });
   }
 
@@ -17144,4 +17149,28 @@ document.addEventListener("DOMContentLoaded", () => {
 
   // 🚀 Initial apply
   applyTheme();
+  
+  // 🎨 Apply theme to newly rendered thumbnails
+  PDFViewerApplication.eventBus._on("thumbnailrendered", ({ source }) => {
+    const theme = themeSelect.value;
+    const brightness = parseFloat(brightnessSlider.value);
+    
+    let filter = "";
+    if (theme === "dark") {
+      filter = `invert(100%) hue-rotate(180deg) brightness(${brightness}) contrast(1.2)`;
+    } else if (theme === "sepia") {
+      filter = `sepia(0.9) hue-rotate(25deg) brightness(${0.9 * brightness}) saturate(1.2)`;
+    } else if (theme === "soft-dark") {
+      filter = `invert(90%) hue-rotate(210deg) brightness(${brightness}) contrast(1.1)`;
+    } else if (theme === "forest") {
+      filter = `invert(80%) sepia(0.5) hue-rotate(75deg) saturate(1.2) brightness(${0.8 * brightness})`;
+    } else {
+      filter = "none";
+    }
+    
+    // Apply theme to the newly rendered thumbnail
+    if (source.image) {
+      source.image.style.filter = filter;
+    }
+  });
 });
