@@ -1,80 +1,78 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <title>MoonReader</title>
+  <meta charset="UTF-8" />
+  <title>Eclipse PDF</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
   <style>
+    :root { --bg:#111; --fg:#eee; --muted:#ccc; --sub:#ddd; }
+    @media (prefers-color-scheme: light) {
+      :root { --bg:#fafafa; --fg:#111; --muted:#444; --sub:#222; }
+      button { background:#111; color:#fff; }
+      button:hover { background:#222; }
+    }
     body {
-      background: #111;
-      color: #eee;
-      font-family: sans-serif;
+      background: var(--bg);
+      color: var(--fg);
+      font-family: system-ui, -apple-system, Segoe UI, Roboto, sans-serif;
       text-align: center;
-      padding-top: 100px;
+      padding: 100px 16px 40px;
+      margin: 0;
     }
-
-    img {
-      margin-bottom: 20px;
-    }
-
-    h1 {
-      font-size: 36px;
-      margin-bottom: 10px;
-    }
-
-    p {
-      margin: 5px auto;
-      max-width: 500px;
-      font-size: 16px;
-      color: #ccc;
-    }
-
-    .subtitle {
-      font-size: 18px;
-      color: #ddd;
-      margin-top: -10px;
-    }
-
+    img { margin-bottom: 20px; }
+    h1 { font-size: 36px; margin: 8px 0 10px; }
+    p { margin: 6px auto; max-width: 620px; font-size: 16px; color: var(--muted); }
+    .subtitle { font-size: 18px; color: var(--sub); margin-top: -4px; }
     button {
-      margin-top: 30px;
+      margin-top: 28px;
       font-size: 18px;
       padding: 10px 24px;
       background: #eee;
       color: #111;
       border: none;
-      border-radius: 4px;
+      border-radius: 6px;
       cursor: pointer;
-      transition: 0.2s ease;
+      transition: transform .06s ease, filter .2s ease;
     }
-
-    button:hover {
-      background: #ddd;
-    }
+    button:hover { filter: brightness(.9); }
+    button:active { transform: translateY(1px); }
+    .links { margin-top: 18px; font-size: 14px; }
+    .links a { color: inherit; opacity: .8; text-decoration: underline; margin: 0 8px; }
   </style>
 </head>
 <body>
-  <img src="icon.png" alt="MoonReader Logo" width="96" height="96" />
-  <h1>MoonReader</h1>
-  <p class="subtitle">Your customizable, eye-friendly PDF viewer</p>
-<p>Open any local PDF with themes like Dark, Sepia, Warm, and more. Perfect for late-night reading, focused study, or relaxed browsing. Built for comfort and clarity.</p>
-  <button id="open-pdf">Open PDF</button>
+  <img src="assets/icon.png" alt="Eclipse PDF logo" width="96" height="96" />
+  <h1>Eclipse PDF</h1>
+  <p class="subtitle">Read, edit, and annotate PDFs with customizable themes.</p>
+  <p>Open local PDF files and work your way—highlight, comment, draw, add text or images, and switch between Dark, Sepia, Warm, or Light modes for comfortable viewing.</p>
+
+  <button id="open-pdf" aria-label="Open a PDF file">Open PDF</button>
+
+  <div class="links" aria-label="Helpful links">
+    <!-- Update these after you publish the site -->
+    <!-- <a href="https://eclipsepdf.com/support" target="_blank" rel="noopener">Help & Support</a> -->
+    <!-- <a href="https://eclipsepdf.com/whats-new" target="_blank" rel="noopener">What’s New</a> -->
+  </div>
 
   <script>
     const openBtn = document.getElementById('open-pdf');
 
     openBtn.addEventListener('click', async () => {
-      const filePath = await window.electronAPI.selectPDF?.();
+      const filePath = await window.electronAPI?.selectPDF?.();
       if (filePath) {
         window.location.href = `web/viewer.html?file=${encodeURIComponent(filePath)}`;
       }
     });
 
+    // Handle File > Open from native menu (sent from main.js)
     window.electronAPI?.onOpenPDF((filePath) => {
-      console.log('📥 Received PDF file path from main.js:', filePath);
-      if (filePath) {
-        const formatted = filePath.startsWith('file://') ? filePath : `file://${filePath.replace(/\\/g, '/')}`;
-        console.log('🔗 Redirecting to viewer with:', formatted);
-        window.location.href = `web/viewer.html?file=${encodeURIComponent(formatted)}`;
-      }
+      console.log('📥 Received PDF from main process:', filePath);
+      if (!filePath) return;
+      const formatted = filePath.startsWith('file://')
+        ? filePath
+        : `file://${filePath.replace(/\\/g, '/')}`;
+      console.log('🔗 Opening viewer with:', formatted);
+      window.location.href = `web/viewer.html?file=${encodeURIComponent(formatted)}`;
     });
   </script>
 </body>

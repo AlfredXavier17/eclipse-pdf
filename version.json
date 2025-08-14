@@ -1,6 +1,5 @@
 {
   "latestVersion": "1.0.0",
-  "changelog": "Bug fixes and better performance.",
-  "downloadLink": "https://github.com/AlfredXavier17/moonreader/releases/download/v1.0.0/MoonReader.Setup.1.0.0.exe"
-  
+  "changelog": "First Eclipse PDF release — improved branding, customizable themes, and editing features.",
+  "downloadLink": "https://github.com/AlfredXavier17/eclipse-pdf/releases/download/v1.0.0/EclipsePDF.Setup.1.0.0.exe"
 }

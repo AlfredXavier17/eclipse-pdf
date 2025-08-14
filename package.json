@@ -1,61 +1,66 @@
 {
-  "name": "moonreader",
+  "name": "eclipse-pdf",
   "version": "1.0.0",
   "main": "main.js",
-  "description": "Minimal PDF reader with dark mode",
+  "description": "A modern PDF reader and editor with powerful annotation tools and customizable themes.",
   "scripts": {
     "start": "electron .",
     "pack": "electron-builder --dir",
-    "dist": "electron-builder"
+    "dist": "electron-builder",
+    "dist:store": "electron-builder --win appx"
   },
-  "keywords": [],
   "author": {
     "name": "Alfred Xavier",
-    "email": "alfred@example.com"
+    "email": "alfredxavierct@gmail.com"
   },
   "license": "ISC",
   "devDependencies": {
     "app-builder-bin": "^5.0.0-alpha.12",
     "electron": "^37.2.3",
-    "electron-builder": "^26.0.12"
+    "electron-builder": "^26.0.12",
+    "electron-packager": "^17.1.2"
+  },
+  "dependencies": {
+    "axios": "^1.11.0"
   },
   "build": {
-    "appId": "com.moonreader.app",
-    "productName": "MoonReader",
-    "icon": "icon",
+    "appId": "com.eclipsepdf.app",
+    "productName": "Eclipse PDF",
+    "artifactName": "EclipsePDF-${version}-${os}-${arch}.${ext}",
+    "icon": "assets/icon.png",
+    "directories": { "buildResources": "assets" },
+    "extraResources": [
+      { "from": "assets/icon.ico", "to": "icon.ico" }
+    ],
     "fileAssociations": [
       {
         "ext": "pdf",
         "name": "PDF Document",
-        "description": "Open PDF with MoonReader",
-        "role": "Viewer"
+        "description": "Open PDF with Eclipse PDF",
+        "role": "Viewer",
+        "mimeType": "application/pdf"
       }
     ],
-    "directories": {
-      "buildResources": "assets"
-    },
     "win": {
-      "target": "nsis",
-      "icon": "icon.ico",
-      "signAndEditExecutable": false
+      "target": "appx",
+      "icon": "assets/icon.ico"
+    },
+    "appx": {
+      "publisher": "CN=79C2D2DE-52B5-4CF5-BF5C-95AB0864FB2F",
+      "publisherDisplayName": "Alfred Xavier",
+      "identityName": "AlfredXavier.EclipsePDF",
+      "displayName": "Eclipse PDF",
+      "backgroundColor": "#000000",
+      "electronUpdaterAware": false
     },
     "mac": {
       "target": "dmg",
-      "icon": "icon.icns"
+      "icon": "assets/icon.icns"
     },
     "linux": {
-      "target": [
-        "AppImage",
-        "deb"
-      ],
-      "icon": "icon.png",
+      "target": ["AppImage", "deb"],
+      "icon": "assets/icon.png",
       "category": "Utility"
-    },
-    "nsis": {
-      "perMachine": true
     }
-  },
-  "dependencies": {
-    "axios": "^1.11.0"
   }
 }
