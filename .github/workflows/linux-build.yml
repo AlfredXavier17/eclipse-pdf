@@ -3,19 +3,36 @@ name: Build Linux AppImage
 on:
   workflow_dispatch:
   push:
-    tags: ["v*.*.*"]  # builds automatically when you push a tag like v1.0.0
+    tags: ["v*.*.*"]
 
 jobs:
   linux:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
         with:
           node-version: 20
-      - run: npm ci
-      - run: npm run dist -- -l AppImage
-      - uses: actions/upload-artifact@v4
+          cache: "npm"
+
+      # Needed by electron-builder for AppImage packaging
+      - name: Install system deps
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends \
+            libarchive-tools rpm fakeroot
+
+      - name: Install deps
+        run: npm ci
+
+      - name: Build AppImage
+        run: npm run dist -- -l AppImage
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
         with:
           name: linux-appimage
           path: dist/*.AppImage
