@@ -3,7 +3,7 @@ name: Build Linux AppImage
 on:
   workflow_dispatch:
   push:
-    tags: ["v*.*.*"]
+    tags: ["v*.*.*"]  # optional: will build when you push a tag like v1.0.0
 
 jobs:
   linux:
@@ -18,18 +18,20 @@ jobs:
           node-version: 20
           cache: "npm"
 
-      # Needed by electron-builder for AppImage packaging
+      # Common packages electron-builder needs on Ubuntu for AppImage
       - name: Install system deps
         run: |
           sudo apt-get update
           sudo apt-get install -y --no-install-recommends \
-            libarchive-tools rpm fakeroot
+            libarchive-tools rpm fakeroot p7zip-full icnsutils graphicsmagick libfuse2
 
       - name: Install deps
         run: npm ci
 
-      - name: Build AppImage
-        run: npm run dist -- -l AppImage
+      - name: Build AppImage (no publish)
+        env:
+          USE_HARD_LINKS: false    # avoids cross-device link errors on CI
+        run: npm run dist -- -l AppImage --publish=never
 
       - name: Upload artifact
         uses: actions/upload-artifact@v4
