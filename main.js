@@ -1,78 +1,77 @@
 // main.js
-const { app, BrowserWindow, ipcMain, dialog, shell } = require('electron');
+const { app, BrowserWindow, ipcMain, dialog, shell, Menu } = require('electron');
 const path = require('path');
 const fs = require('fs');
 const axios = require('axios');
 const { pathToFileURL } = require('url');
 
-// ------ Branding / Identity (Windows shell & notifications) ------
 if (process.platform === 'win32') {
-  // MUST match build.appId in package.json
   app.setAppUserModelId('com.eclipsepdf.app');
-  // App display name
   app.setName('Eclipse PDF');
 }
-
-// Use the actual version from package.json/electron
 const currentVersion = app.getVersion();
 
 let mainWindow;
 let pdfToOpen = null;
 
-/* --------------------------
-   1) Update Checker
----------------------------*/
+/* ===== IPC helpers (NEW) ===== */
+ipcMain.handle('get-app-version', () => app.getVersion());
+ipcMain.handle('open-external', (_e, url) => {
+  try {
+    if (typeof url === 'string' && /^https?:\/\//i.test(url)) {
+      return shell.openExternal(url);
+    }
+  } catch {}
+  return false;
+});
+/* ============================= */
+
 async function checkForUpdates() {
   try {
-    // TODO: change this to your new repo path once you create it
-    // e.g., https://raw.githubusercontent.com/<you>/eclipse-pdf/main/version.json
-    const res = await axios.get(
-      'https://raw.githubusercontent.com/AlfredXavier17/moonreader/main/version.json',
-      { timeout: 8000 }
-    );
+    // read version info from YOUR website
+    const res = await axios.get('https://www.eclipsepdf.com/version.json', { timeout: 8000 });
     const data = res.data;
+
     if (data?.latestVersion && data.latestVersion !== currentVersion) {
+      // choose the right link for this OS
+      const downloadLink = process.platform === 'win32'
+        ? data.windowsStoreLink
+        : data.linuxAppImageLink;
+
       const choice = dialog.showMessageBoxSync({
         type: 'info',
-        buttons: ['Download', 'Later'],
+        buttons: ['Open download page', 'Later'],
         defaultId: 0,
         title: 'Update Available',
         message: `A new version (${data.latestVersion}) is available.`,
         detail: data.changelog || ''
       });
-      if (choice === 0 && data.downloadLink) shell.openExternal(data.downloadLink);
+
+      if (choice === 0 && downloadLink) shell.openExternal(downloadLink);
     }
   } catch (err) {
     console.log('Update check failed:', err.message);
   }
 }
 
-/* --------------------------------------------
-   2) Helpers to extract a PDF path from argv
---------------------------------------------- */
+
 function toFileUrl(p) {
   try {
     if (typeof p === 'string' && p.startsWith('file://')) return p;
     return String(pathToFileURL(p));
-  } catch {
-    return null;
-  }
+  } catch { return null; }
 }
-
 function normalizeArg(a) {
   if (typeof a !== 'string') return null;
-  // Strip quotes Windows sometimes adds
   const s = a.trim().replace(/^"(.*)"$/, '$1');
-  if (s.startsWith('--')) return null; // ignore flags
+  if (s.startsWith('--')) return null;
   return s;
 }
-
 function looksLikePdf(s) {
   if (!s) return false;
-  const lower = s.toLowerCase();
-  return lower.endsWith('.pdf') || (lower.startsWith('file://') && lower.includes('.pdf'));
+  const t = s.toLowerCase();
+  return t.endsWith('.pdf') || (t.startsWith('file://') && t.includes('.pdf'));
 }
-
 function findPdfPathInArgv(argv) {
   const args = process.platform === 'win32' ? argv.slice(1) : argv;
   for (const raw of args) {
@@ -85,18 +84,13 @@ function findPdfPathInArgv(argv) {
   }
   return null;
 }
-
-// initial check for PDFs passed on first launch
 pdfToOpen = findPdfPathInArgv(process.argv);
 
-/* ------------------------------------------------
-   3) Single-instance: open next PDFs in same app
-------------------------------------------------- */
 const gotLock = app.requestSingleInstanceLock();
 if (!gotLock) {
   app.quit();
 } else {
-  app.on('second-instance', (_event, argv) => {
+  app.on('second-instance', (_e, argv) => {
     const nextPdf = findPdfPathInArgv(argv);
     if (mainWindow) {
       if (mainWindow.isMinimized()) mainWindow.restore();
@@ -106,42 +100,34 @@ if (!gotLock) {
   });
 }
 
-/* ----------------------------------------
-   4) macOS: handle 'open with' integration
------------------------------------------ */
 app.on('open-file', (event, filePath) => {
   event.preventDefault();
   const url = toFileUrl(filePath);
-  if (mainWindow) {
-    mainWindow.webContents.send('open-pdf', url);
-  } else {
-    pdfToOpen = url;
-  }
+  if (mainWindow) mainWindow.webContents.send('open-pdf', url);
+  else pdfToOpen = url;
 });
 
-/* -----------------------------------------
-   5) File picker handler (frontend trigger)
------------------------------------------- */
 ipcMain.handle('select-pdf', async () => {
-  const result = await dialog.showOpenDialog({
+  const { canceled, filePaths } = await dialog.showOpenDialog({
+    title: 'Open PDF',
     properties: ['openFile'],
     filters: [{ name: 'PDF Files', extensions: ['pdf'] }]
   });
-  if (result.canceled) return null;
-  return toFileUrl(result.filePaths[0]);
+  if (canceled || !filePaths?.[0]) return null;
+  return toFileUrl(filePaths[0]);
+});
+ipcMain.on('save-file', (_event, filePath, dataBuffer) => {
+  try { fs.writeFileSync(filePath, Buffer.from(dataBuffer)); }
+  catch (err) { console.error('Failed to save file:', err); }
 });
 
-/* -----------------------------
-   6) Icon per platform
------------------------------- */
-function firstExisting(paths) {
-  return paths.find(p => p && fs.existsSync(p));
-}
-
+function firstExisting(paths) { return paths.find(p => p && fs.existsSync(p)); }
 function getIconPath() {
   if (process.platform === 'win32') {
-    // extraResources -> resources/icon.ico
-    return path.join(process.resourcesPath, 'icon.ico');
+    return firstExisting([
+      path.join(__dirname, 'assets', 'icon.ico'),
+      path.join(process.resourcesPath, 'icon.ico')
+    ]);
   }
   if (process.platform === 'darwin') {
     return firstExisting([
@@ -149,7 +135,6 @@ function getIconPath() {
       path.join(__dirname, 'assets', 'icons', 'mac', 'icon.icns')
     ]);
   }
-  // linux prefers a PNG
   return firstExisting([
     path.join(__dirname, 'assets', 'icon.png'),
     path.join(__dirname, 'assets', 'icons', 'png', '512x512.png'),
@@ -157,18 +142,75 @@ function getIconPath() {
   ]);
 }
 
-/* -----------------------------
-   7) Create the main window
------------------------------- */
+function setHomeMenu() {
+  Menu.setApplicationMenu(null);
+  if (mainWindow) mainWindow.setMenuBarVisibility(false);
+}
+function setViewerMenu(win) {
+  const template = [
+    {
+      label: 'File',
+      submenu: [
+        {
+          label: 'Back to Home',
+          accelerator: 'Alt+Left',
+          click: () => {
+            if (!win) return;
+            win.webContents.once('will-prevent-unload', e => e.preventDefault());
+            win.loadFile('file-picker.html');
+          }
+        },
+        {
+          label: 'Open PDF…',
+          accelerator: 'CmdOrCtrl+O',
+          click: async () => {
+            const { canceled, filePaths } = await dialog.showOpenDialog({
+              title: 'Open PDF',
+              properties: ['openFile'],
+              filters: [{ name: 'PDF Files', extensions: ['pdf'] }]
+            });
+            if (!canceled && filePaths?.[0]) {
+              const url = toFileUrl(filePaths[0]);
+              win.webContents.send('open-pdf', url);
+            }
+          }
+        },
+        { type: 'separator' },
+        {
+          label: 'Save',
+          accelerator: 'CmdOrCtrl+S',
+          click: () => { if (win) win.webContents.send('save-pdf'); }
+        },
+        { type: 'separator' },
+        { role: 'close' },
+        { role: 'quit' }
+      ]
+    },
+    {
+      label: 'Edit',
+      submenu: [
+        { label: 'Undo', accelerator: 'CmdOrCtrl+Z',
+          click: () => { if (win) win.webContents.send('menu-undo'); } },
+        { label: 'Redo', accelerator: process.platform === 'darwin' ? 'CmdOrCtrl+Shift+Z' : 'CmdOrCtrl+Y',
+          click: () => { if (win) win.webContents.send('menu-redo'); } },
+        { type: 'separator' },
+        { role: 'cut' }, { role: 'copy' }, { role: 'paste' },
+        { role: 'delete' }, { type: 'separator' }, { role: 'selectAll' }
+      ]
+    }
+  ];
+  Menu.setApplicationMenu(Menu.buildFromTemplate(template));
+  win.setMenuBarVisibility(true);
+}
+
 function createWindow() {
   const iconPath = getIconPath();
-  console.log('Icon path:', iconPath);
-
   mainWindow = new BrowserWindow({
     width: 1200,
     height: 800,
     title: 'Eclipse PDF',
-    icon: iconPath,
+    icon: iconPath || undefined,
+    autoHideMenuBar: false,
     webPreferences: {
       preload: path.join(__dirname, 'preload.js'),
       contextIsolation: true,
@@ -176,13 +218,15 @@ function createWindow() {
       sandbox: false
     }
   });
-
-  // setIcon is only meaningful on Linux; on Win/mac it’s ignored
-  if (process.platform === 'linux' && iconPath && mainWindow) {
-    mainWindow.setIcon(iconPath);
-  }
+  if (process.platform === 'linux' && iconPath) mainWindow.setIcon(iconPath);
 
   mainWindow.loadFile('file-picker.html');
+  setHomeMenu();
+
+  mainWindow.webContents.on('did-navigate', (_e, url) => {
+    if (url.includes('web/viewer.html')) setViewerMenu(mainWindow);
+    else setHomeMenu();
+  });
 
   mainWindow.webContents.once('did-finish-load', () => {
     if (pdfToOpen) {
@@ -191,26 +235,12 @@ function createWindow() {
     }
   });
 
-  mainWindow.on('closed', () => {
-    mainWindow = null;
-  });
+  mainWindow.on('closed', () => { mainWindow = null; });
 }
 
-/* -----------------------------
-   8) App lifecycle
------------------------------- */
 app.whenReady().then(() => {
   createWindow();
-  // Skip updater when running as a Microsoft Store/MSIX app
-  if (app.isPackaged && !process.windowsStore) {
-    checkForUpdates();
-  }
+  if (app.isPackaged && !process.windowsStore) checkForUpdates();
 });
-
-app.on('window-all-closed', () => {
-  if (process.platform !== 'darwin') app.quit();
-});
-
-app.on('activate', () => {
-  if (BrowserWindow.getAllWindows().length === 0) createWindow();
-});
+app.on('window-all-closed', () => { if (process.platform !== 'darwin') app.quit(); });
+app.on('activate', () => { if (BrowserWindow.getAllWindows().length === 0) createWindow(); });

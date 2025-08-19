@@ -57,6 +57,8 @@ See https://github.com/adobe-type-tools/cmap-resources
   pdfjsLib.GlobalWorkerOptions.workerSrc = './pdf.worker.mjs';
   window.pdfjsLib = pdfjsLib;
 </script> -->
+
+
 <script type="module">
   import * as pdfjsLib from './pdf.mjs';
 
@@ -81,8 +83,6 @@ See https://github.com/adobe-type-tools/cmap-resources
   }
   window.pdfjsLib = pdfjsLib;
 </script>
-
-
 
     <link rel="stylesheet" href="viewer.css">
 
@@ -800,6 +800,97 @@ See https://github.com/adobe-type-tools/cmap-resources
 
     </div> <!-- outerContainer -->
     <div id="printContainer"></div>
-    
-  </body>
-</html>
+<script>
+/* ---- finalize any active drawing so saves/undo see it ---- */
+function commitEditIfAny() {
+  const doneBtn = document.querySelector(
+    '[data-tool="apply"], [data-tool="done"], [aria-label*="Done"], [title*="Done"]'
+  );
+  doneBtn?.click();
+
+  const pointerTool =
+    document.querySelector('[data-tool="select"], [data-tool="cursor"], [aria-label*="Select"], [title*="Select"]') ||
+    document.querySelector('[data-tool="hand"], [aria-label*="Hand"], [title*="Hand"]');
+  pointerTool?.click();
+
+  document.activeElement?.blur();
+  document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
+  document.dispatchEvent(new KeyboardEvent('keyup',   { key: 'Escape', bubbles: true }));
+}
+
+/* ---- SAVE (uses your toolbar export so edits are kept) ---- */
+function clickToolbarSave() {
+  let btn =
+    document.querySelector('[data-tool="save"]') ||
+    document.querySelector('button[aria-label*="Save"]') ||
+    document.querySelector('button[title*="Save"]') ||
+    document.querySelector('a[download]') ||
+    document.getElementById('download');
+
+  if (btn) btn.click();
+  else {
+    const guess = Array.from(document.querySelectorAll('button,a')).find(el => {
+      const t = (el.title || el.ariaLabel || el.textContent || '').toLowerCase();
+      return t.includes('save') || t.includes('download');
+    });
+    guess?.click();
+  }
+}
+
+window.electronAPI.onSavePDF(() => {
+  commitEditIfAny();
+  setTimeout(clickToolbarSave, 50);
+});
+
+/* ---- UNDO / REDO (click the toolbar buttons; has fallbacks) ---- */
+function clickUndo() {
+  const btn =
+    document.querySelector('[data-tool="undo"]') ||
+    document.querySelector('button[aria-label*="Undo"]') ||
+    document.querySelector('button[title*="Undo"]');
+  if (btn) { btn.click(); return; }
+
+  // keyboard fallback
+  document.dispatchEvent(new KeyboardEvent('keydown', { key: 'z', ctrlKey: true, metaKey: false, bubbles: true }));
+  document.dispatchEvent(new KeyboardEvent('keyup',   { key: 'z', ctrlKey: true, metaKey: false, bubbles: true }));
+}
+
+function clickRedo() {
+  const btn =
+    document.querySelector('[data-tool="redo"]') ||
+    document.querySelector('button[aria-label*="Redo"]') ||
+    document.querySelector('button[title*="Redo"]');
+  if (btn) { btn.click(); return; }
+
+  // keyboard fallback (Ctrl+Y)
+  document.dispatchEvent(new KeyboardEvent('keydown', { key: 'y', ctrlKey: true, metaKey: false, bubbles: true }));
+  document.dispatchEvent(new KeyboardEvent('keyup',   { key: 'y', ctrlKey: true, metaKey: false, bubbles: true }));
+}
+
+/* menu -> undo/redo (from main.js via preload) */
+window.electronAPI.onMenuUndo?.(() => clickUndo());
+window.electronAPI.onMenuRedo?.(() => clickRedo());
+
+/* ---- REAL keyboard shortcuts ----
+   Ctrl/Cmd+Z => Undo
+   Ctrl+Y or Ctrl/Cmd+Shift+Z => Redo
+*/
+document.addEventListener('keydown', (e) => {
+  const mod = e.ctrlKey || e.metaKey;
+  const k = e.key.toLowerCase();
+
+  // Undo: Ctrl/Cmd + Z (no Shift)
+  if (mod && k === 'z' && !e.shiftKey) {
+    e.preventDefault();
+    clickUndo();
+    return;
+  }
+
+  // Redo: Ctrl+Y OR Ctrl/Cmd+Shift+Z
+  if ((mod && k === 'y') || (mod && e.shiftKey && k === 'z')) {
+    e.preventDefault();
+    clickRedo();
+    return;
+  }
+});
+</script>

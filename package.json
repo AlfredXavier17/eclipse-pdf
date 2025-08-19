@@ -3,34 +3,39 @@
   "version": "1.0.0",
   "main": "main.js",
   "description": "A modern PDF reader and editor with powerful annotation tools and customizable themes.",
+  "author": {
+    "name": "Alfred Xavier",
+    "email": "alfredxavierct@gmail.com"
+  },
+  "license": "ISC",
   "scripts": {
     "start": "electron .",
     "pack": "electron-builder --dir",
     "dist": "electron-builder",
     "dist:store": "electron-builder --win appx"
   },
-  "author": {
-    "name": "Alfred Xavier",
-    "email": "alfredxavierct@gmail.com"
+  "dependencies": {
+    "axios": "^1.11.0"
   },
-  "license": "ISC",
   "devDependencies": {
     "app-builder-bin": "^5.0.0-alpha.12",
     "electron": "^37.2.3",
     "electron-builder": "^26.0.12",
     "electron-packager": "^17.1.2"
   },
-  "dependencies": {
-    "axios": "^1.11.0"
-  },
   "build": {
     "appId": "com.eclipsepdf.app",
     "productName": "Eclipse PDF",
     "artifactName": "EclipsePDF-${version}-${os}-${arch}.${ext}",
-    "icon": "assets/icon.png",
-    "directories": { "buildResources": "assets" },
+    "icon": "assets/icon.ico",
+    "directories": {
+      "buildResources": "assets"
+    },
     "extraResources": [
-      { "from": "assets/icon.ico", "to": "icon.ico" }
+      {
+        "from": "assets/icon.ico",
+        "to": "icon.ico"
+      }
     ],
     "fileAssociations": [
       {

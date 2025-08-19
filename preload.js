@@ -1,16 +1,31 @@
-const { contextBridge, ipcRenderer } = require('electron');
+// preload.js
+const { contextBridge, ipcRenderer, shell } = require('electron');
 
 contextBridge.exposeInMainWorld('electronAPI', {
-  // Optional: if you're using the "Open PDF" button
-  selectPDF: async () => {
-    const result = await ipcRenderer.invoke('select-pdf');
-    return result;
+  /* ---------- existing methods you already had ---------- */
+  selectPDF: async () => ipcRenderer.invoke('select-pdf'),
+  onOpenPDF: (cb) => ipcRenderer.on('open-pdf', (_e, filePath) => cb(filePath)),
+  onSavePDF: (cb) => ipcRenderer.on('save-pdf', () => cb()),
+  onMenuUndo: (cb) => ipcRenderer.on('menu-undo', () => cb()),
+  onMenuRedo: (cb) => ipcRenderer.on('menu-redo', () => cb()),
+  saveFile: (filePath, data) => ipcRenderer.send('save-file', filePath, data),
+
+  /* ---------- new: always open links in the default browser ---------- */
+  openExternal: (url) => {
+    try {
+      if (typeof url === 'string' && url.startsWith('http')) {
+        shell.openExternal(url);
+      }
+    } catch (e) {
+      // swallow errors; UI can fall back to window.open
+    }
   },
 
-  // ✅ Listen for "open-pdf" event and pass the file path to renderer
-  onOpenPDF: (callback) => {
-    ipcRenderer.on('open-pdf', (event, filePath) => {
-      callback(filePath);
-    });
-  }
+  /* ---------- optional helpers (safe to keep) ---------- */
+  // Ask main for your app version (implement handler in main if you want exact version)
+  getVersion: () =>
+    ipcRenderer.invoke('get-app-version').catch(() => 'unknown'),
+
+  // Quick OS string for support payloads
+  getPlatform: () => process.platform,
 });
