@@ -813,9 +813,19 @@ function toSystemPath(url) {
   } catch { return url; }
 }
 
-
 let originalUrl = decodeURIComponent(new URLSearchParams(location.search).get('file') || '');
 let originalPath = toSystemPath(originalUrl);
+
+let hasUnsaved = false;
+window.addEventListener('load', () => {
+  PDFViewerApplication.eventBus.on('documentloaded', () => {
+    const storage = PDFViewerApplication.pdfDocument?.annotationStorage;
+    if (storage) {
+      storage.onSetModified = () => { hasUnsaved = true; };
+      storage.onResetModified = () => { hasUnsaved = false; };
+    }
+  });
+});
 
 
 /* ---- finalize any active drawing so saves/undo see it ---- */
@@ -840,7 +850,6 @@ async function saveDirect() {
   const data = await PDFViewerApplication.pdfDocument.saveDocument();
   window.electronAPI.saveFile(originalPath, data);
   PDFViewerApplication.pdfDocument?.annotationStorage?.resetModified?.();
-
   showSaved();
 }
 
@@ -900,7 +909,8 @@ document.addEventListener('keydown', (e) => {
 window.__saveCurrent = saveDirect;
 window.__hasUnsavedChanges = () => {
   commitEditIfAny();
-  return !!PDFViewerApplication.pdfDocument?.annotationStorage?.modified;
+  return hasUnsaved;
+
 };
 
 /* ---- UNDO / REDO (click the toolbar buttons; has fallbacks) ---- */

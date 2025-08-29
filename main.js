@@ -127,7 +127,6 @@ ipcMain.on('save-file', (_event, filePath, dataBuffer) => {
   }
 });
 
-
 ipcMain.handle('save-file-as', async (_event, defaultPath, dataBuffer) => {
   try {
     const { canceled, filePath } = await dialog.showSaveDialog({
@@ -145,12 +144,16 @@ ipcMain.handle('save-file-as', async (_event, defaultPath, dataBuffer) => {
 });
 
 async function promptToSave(win, next) {
+  const runNext = async () => {
+    win.webContents.once('will-prevent-unload', e => e.preventDefault());
+    await next();
+  };
   try {
     const hasUnsaved = await win.webContents.executeJavaScript(
       '(()=>{try{return !!(window.__hasUnsavedChanges && window.__hasUnsavedChanges());}catch(e){return false;}})()'
     );
     if (!hasUnsaved) {
-      await next();
+      await runNext();
       return true;
     }
     const response = dialog.showMessageBoxSync(win, {
@@ -162,17 +165,19 @@ async function promptToSave(win, next) {
     });
     if (response === 0) {
       await win.webContents.executeJavaScript('window.__saveCurrent?.()').catch(() => {});
-      await next();
+
+      await runNext();
       return true;
     }
     if (response === 1) {
-      await next();
+      await runNext();
+
       return true;
     }
     return false;
   } catch (e) {
     console.error('promptToSave failed:', e);
-    await next();
+    await runNext();
     return true;
   }
 }
