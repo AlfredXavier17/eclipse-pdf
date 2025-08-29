@@ -3,7 +3,7 @@ const { app, BrowserWindow, ipcMain, dialog, shell, Menu } = require('electron')
 const path = require('path');
 const fs = require('fs');
 const axios = require('axios');
-const { pathToFileURL } = require('url');
+const { pathToFileURL, fileURLToPath } = require('url');
 
 if (process.platform === 'win32') {
   app.setAppUserModelId('com.eclipsepdf.app');
@@ -117,9 +117,68 @@ ipcMain.handle('select-pdf', async () => {
   return toFileUrl(filePaths[0]);
 });
 ipcMain.on('save-file', (_event, filePath, dataBuffer) => {
-  try { fs.writeFileSync(filePath, Buffer.from(dataBuffer)); }
-  catch (err) { console.error('Failed to save file:', err); }
+  try {
+    if (typeof filePath === 'string' && filePath.startsWith('file://')) {
+      filePath = fileURLToPath(filePath);
+    }
+    fs.writeFileSync(filePath, Buffer.from(dataBuffer));
+  } catch (err) {
+    console.error('Failed to save file:', err);
+  }
 });
+
+ipcMain.handle('save-file-as', async (_event, defaultPath, dataBuffer) => {
+  try {
+    const { canceled, filePath } = await dialog.showSaveDialog({
+      title: 'Save PDF As',
+      defaultPath,
+      filters: [{ name: 'PDF Files', extensions: ['pdf'] }]
+    });
+    if (canceled || !filePath) return null;
+    fs.writeFileSync(filePath, Buffer.from(dataBuffer));
+    return toFileUrl(filePath);
+  } catch (err) {
+    console.error('Failed to save as:', err);
+    return null;
+  }
+});
+
+async function promptToSave(win, next) {
+  const runNext = async () => {
+    win.webContents.once('will-prevent-unload', e => e.preventDefault());
+    await next();
+  };
+  try {
+    const hasUnsaved = await win.webContents.executeJavaScript(
+      '(()=>{try{return !!(window.__hasUnsavedChanges && window.__hasUnsavedChanges());}catch(e){return false;}})()'
+    );
+    if (!hasUnsaved) {
+      await runNext();
+      return true;
+    }
+    const response = dialog.showMessageBoxSync(win, {
+      type: 'question',
+      buttons: ['Save', "Don't Save", 'Cancel'],
+      defaultId: 0,
+      cancelId: 2,
+      message: 'You have unsaved changes. What would you like to do?'
+    });
+    if (response === 0) {
+      await win.webContents.executeJavaScript('window.__saveCurrent?.()').catch(() => {});
+      await runNext();
+      return true;
+    }
+    if (response === 1) {
+      await runNext();
+      return true;
+    }
+    return false;
+  } catch (e) {
+    console.error('promptToSave failed:', e);
+    await runNext();
+    return true;
+  }
+}
 
 function firstExisting(paths) { return paths.find(p => p && fs.existsSync(p)); }
 function getIconPath() {
@@ -154,25 +213,27 @@ function setViewerMenu(win) {
         {
           label: 'Back to Home',
           accelerator: 'Alt+Left',
-          click: () => {
+          click: async () => {
             if (!win) return;
-            win.webContents.once('will-prevent-unload', e => e.preventDefault());
-            win.loadFile('file-picker.html');
+            await promptToSave(win, () => win.loadFile('file-picker.html'));
           }
         },
         {
           label: 'Open PDF…',
           accelerator: 'CmdOrCtrl+O',
           click: async () => {
-            const { canceled, filePaths } = await dialog.showOpenDialog({
-              title: 'Open PDF',
-              properties: ['openFile'],
-              filters: [{ name: 'PDF Files', extensions: ['pdf'] }]
+            if (!win) return;
+            await promptToSave(win, async () => {
+              const { canceled, filePaths } = await dialog.showOpenDialog({
+                title: 'Open PDF',
+                properties: ['openFile'],
+                filters: [{ name: 'PDF Files', extensions: ['pdf'] }]
+              });
+              if (!canceled && filePaths?.[0]) {
+                const url = toFileUrl(filePaths[0]);
+                win.webContents.send('open-pdf', url);
+              }
             });
-            if (!canceled && filePaths?.[0]) {
-              const url = toFileUrl(filePaths[0]);
-              win.webContents.send('open-pdf', url);
-            }
           }
         },
         { type: 'separator' },
@@ -180,6 +241,11 @@ function setViewerMenu(win) {
           label: 'Save',
           accelerator: 'CmdOrCtrl+S',
           click: () => { if (win) win.webContents.send('save-pdf'); }
+        },
+        {
+          label: 'Save As…',
+          accelerator: 'CmdOrCtrl+Shift+S',
+          click: () => { if (win) win.webContents.send('save-as-pdf'); }
         },
         { type: 'separator' },
         { role: 'close' },
@@ -233,6 +299,15 @@ function createWindow() {
       mainWindow.webContents.send('open-pdf', pdfToOpen);
       pdfToOpen = null;
     }
+  });
+
+  mainWindow.on('close', async (e) => {
+    if (mainWindow.forceClose) return;
+    e.preventDefault();
+    await promptToSave(mainWindow, () => {
+      mainWindow.forceClose = true;
+      mainWindow.close();
+    });
   });
 
   mainWindow.on('closed', () => { mainWindow = null; });

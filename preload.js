@@ -6,9 +6,11 @@ contextBridge.exposeInMainWorld('electronAPI', {
   selectPDF: async () => ipcRenderer.invoke('select-pdf'),
   onOpenPDF: (cb) => ipcRenderer.on('open-pdf', (_e, filePath) => cb(filePath)),
   onSavePDF: (cb) => ipcRenderer.on('save-pdf', () => cb()),
+  onSaveAsPDF: (cb) => ipcRenderer.on('save-as-pdf', () => cb()),
   onMenuUndo: (cb) => ipcRenderer.on('menu-undo', () => cb()),
   onMenuRedo: (cb) => ipcRenderer.on('menu-redo', () => cb()),
   saveFile: (filePath, data) => ipcRenderer.send('save-file', filePath, data),
+  saveFileAs: (filePath, data) => ipcRenderer.invoke('save-file-as', filePath, data),
 
   /* ---------- new: always open links in the default browser ---------- */
   openExternal: (url) => {

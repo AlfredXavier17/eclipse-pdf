@@ -347,8 +347,11 @@ See https://github.com/adobe-type-tools/cmap-resources
                     <span data-l10n-id="pdfjs-print-button-label"></span>
                   </button>
 
-                  <button id="downloadButton" class="toolbarButton" type="button" tabindex="0" data-l10n-id="pdfjs-save-button">
-                    <span data-l10n-id="pdfjs-save-button-label"></span>
+                  <button id="saveButton" class="toolbarButton" type="button" tabindex="0" title="Save">
+                    <span>Save</span>
+                  </button>
+                  <button id="downloadButton" class="toolbarButton" type="button" tabindex="0" title="Save As">
+                    <span>Save As</span>
                   </button>
                 </div>
 
@@ -801,6 +804,29 @@ See https://github.com/adobe-type-tools/cmap-resources
     </div> <!-- outerContainer -->
     <div id="printContainer"></div>
 <script>
+function toSystemPath(url) {
+  try {
+    const u = new URL(url);
+    let p = decodeURIComponent(u.pathname);
+    if (p.startsWith('/') && /^[A-Za-z]:/.test(p.slice(1,3))) p = p.slice(1);
+    return p;
+  } catch { return url; }
+}
+
+let originalUrl = decodeURIComponent(new URLSearchParams(location.search).get('file') || '');
+let originalPath = toSystemPath(originalUrl);
+
+let hasUnsaved = false;
+window.addEventListener('load', () => {
+  PDFViewerApplication.eventBus.on('documentloaded', () => {
+    const storage = PDFViewerApplication.pdfDocument?.annotationStorage;
+    if (storage) {
+      storage.onSetModified = () => { hasUnsaved = true; };
+      storage.onResetModified = () => { hasUnsaved = false; };
+    }
+  });
+});
+
 /* ---- finalize any active drawing so saves/undo see it ---- */
 function commitEditIfAny() {
   const doneBtn = document.querySelector(
@@ -818,29 +844,71 @@ function commitEditIfAny() {
   document.dispatchEvent(new KeyboardEvent('keyup',   { key: 'Escape', bubbles: true }));
 }
 
-/* ---- SAVE (uses your toolbar export so edits are kept) ---- */
-function clickToolbarSave() {
-  let btn =
-    document.querySelector('[data-tool="save"]') ||
-    document.querySelector('button[aria-label*="Save"]') ||
-    document.querySelector('button[title*="Save"]') ||
-    document.querySelector('a[download]') ||
-    document.getElementById('download');
+async function saveDirect() {
+  if (!originalUrl.startsWith('file:') || !originalPath) return;
+  const data = await PDFViewerApplication.pdfDocument.saveDocument();
+  window.electronAPI.saveFile(originalPath, data);
+  PDFViewerApplication.pdfDocument?.annotationStorage?.resetModified?.();
+  showSaved();
+}
 
-  if (btn) btn.click();
-  else {
-    const guess = Array.from(document.querySelectorAll('button,a')).find(el => {
-      const t = (el.title || el.ariaLabel || el.textContent || '').toLowerCase();
-      return t.includes('save') || t.includes('download');
-    });
-    guess?.click();
+async function saveAs() {
+  if (!PDFViewerApplication.pdfDocument) return;
+  const data = await PDFViewerApplication.pdfDocument.saveDocument();
+  const newUrl = await window.electronAPI.saveFileAs(originalPath, data);
+  if (newUrl) {
+    originalUrl = newUrl;
+    originalPath = toSystemPath(newUrl);
+    PDFViewerApplication.pdfDocument?.annotationStorage?.resetModified?.();
+    showSaved();
   }
 }
 
 window.electronAPI.onSavePDF(() => {
   commitEditIfAny();
-  setTimeout(clickToolbarSave, 50);
+  saveDirect();
 });
+
+window.electronAPI.onSaveAsPDF(() => {
+  commitEditIfAny();
+  saveAs();
+});
+
+document.getElementById('saveButton')?.addEventListener('click', () => {
+  commitEditIfAny();
+  saveDirect();
+});
+document.getElementById('downloadButton')?.addEventListener('click', () => {
+  commitEditIfAny();
+  saveAs();
+});
+
+function showSaved() {
+  const alertEl = document.getElementById('viewer-alert');
+  if (!alertEl) return;
+  alertEl.textContent = 'Saved';
+  alertEl.classList.remove('visuallyHidden');
+  setTimeout(() => alertEl.classList.add('visuallyHidden'), 1500);
+}
+
+document.addEventListener('keydown', (e) => {
+  if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 's') {
+    e.preventDefault();
+    e.stopPropagation();
+    commitEditIfAny();
+    if (e.shiftKey) {
+      saveAs();
+    } else {
+      saveDirect();
+    }
+  }
+}, true);
+
+window.__saveCurrent = saveDirect;
+window.__hasUnsavedChanges = () => {
+  commitEditIfAny();
+  return hasUnsaved;
+};
 
 /* ---- UNDO / REDO (click the toolbar buttons; has fallbacks) ---- */
 function clickUndo() {
