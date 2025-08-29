@@ -165,11 +165,13 @@ async function promptToSave(win, next) {
     });
     if (response === 0) {
       await win.webContents.executeJavaScript('window.__saveCurrent?.()').catch(() => {});
+
       await runNext();
       return true;
     }
     if (response === 1) {
       await runNext();
+
       return true;
     }
     return false;
