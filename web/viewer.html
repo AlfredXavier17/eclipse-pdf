@@ -813,8 +813,10 @@ function toSystemPath(url) {
   } catch { return url; }
 }
 
+
 let originalUrl = decodeURIComponent(new URLSearchParams(location.search).get('file') || '');
 let originalPath = toSystemPath(originalUrl);
+
 
 /* ---- finalize any active drawing so saves/undo see it ---- */
 function commitEditIfAny() {
@@ -838,6 +840,7 @@ async function saveDirect() {
   const data = await PDFViewerApplication.pdfDocument.saveDocument();
   window.electronAPI.saveFile(originalPath, data);
   PDFViewerApplication.pdfDocument?.annotationStorage?.resetModified?.();
+
   showSaved();
 }
 
@@ -851,6 +854,7 @@ async function saveAs() {
     PDFViewerApplication.pdfDocument?.annotationStorage?.resetModified?.();
     showSaved();
   }
+  PDFViewerApplication.pdfDocument?.annotationStorage?.resetModified?.();
 }
 
 window.electronAPI.onSavePDF(() => {
