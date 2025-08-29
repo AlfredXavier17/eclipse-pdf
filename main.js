@@ -127,6 +127,22 @@ ipcMain.on('save-file', (_event, filePath, dataBuffer) => {
   }
 });
 
+ipcMain.handle('save-file-as', async (_event, defaultPath, dataBuffer) => {
+  try {
+    const { canceled, filePath } = await dialog.showSaveDialog({
+      title: 'Save PDF As',
+      defaultPath,
+      filters: [{ name: 'PDF Files', extensions: ['pdf'] }]
+    });
+    if (canceled || !filePath) return null;
+    fs.writeFileSync(filePath, Buffer.from(dataBuffer));
+    return toFileUrl(filePath);
+  } catch (err) {
+    console.error('Failed to save as:', err);
+    return null;
+  }
+});
+
 async function promptToSave(win, next) {
   try {
     const hasUnsaved = await win.webContents.executeJavaScript(

@@ -10,6 +10,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
   onMenuUndo: (cb) => ipcRenderer.on('menu-undo', () => cb()),
   onMenuRedo: (cb) => ipcRenderer.on('menu-redo', () => cb()),
   saveFile: (filePath, data) => ipcRenderer.send('save-file', filePath, data),
+  saveFileAs: (filePath, data) => ipcRenderer.invoke('save-file-as', filePath, data),
 
   /* ---------- new: always open links in the default browser ---------- */
   openExternal: (url) => {
