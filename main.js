@@ -150,9 +150,9 @@ async function promptToSave(win, next) {
     );
     if (!hasUnsaved) {
       await next();
-      return;
+      return true;
     }
-    const { response } = await dialog.showMessageBox(win, {
+    const response = dialog.showMessageBoxSync(win, {
       type: 'question',
       buttons: ['Save', "Don't Save", 'Cancel'],
       defaultId: 0,
@@ -162,12 +162,17 @@ async function promptToSave(win, next) {
     if (response === 0) {
       await win.webContents.executeJavaScript('window.__saveCurrent?.()').catch(() => {});
       await next();
-    } else if (response === 1) {
-      await next();
+      return true;
     }
+    if (response === 1) {
+      await next();
+      return true;
+    }
+    return false;
   } catch (e) {
     console.error('promptToSave failed:', e);
     await next();
+    return true;
   }
 }
 
