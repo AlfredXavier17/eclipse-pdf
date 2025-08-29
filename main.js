@@ -3,7 +3,7 @@ const { app, BrowserWindow, ipcMain, dialog, shell, Menu } = require('electron')
 const path = require('path');
 const fs = require('fs');
 const axios = require('axios');
-const { pathToFileURL } = require('url');
+const { pathToFileURL, fileURLToPath } = require('url');
 
 if (process.platform === 'win32') {
   app.setAppUserModelId('com.eclipsepdf.app');
@@ -117,9 +117,40 @@ ipcMain.handle('select-pdf', async () => {
   return toFileUrl(filePaths[0]);
 });
 ipcMain.on('save-file', (_event, filePath, dataBuffer) => {
-  try { fs.writeFileSync(filePath, Buffer.from(dataBuffer)); }
-  catch (err) { console.error('Failed to save file:', err); }
+  try {
+    if (typeof filePath === 'string' && filePath.startsWith('file://')) {
+      filePath = fileURLToPath(filePath);
+    }
+    fs.writeFileSync(filePath, Buffer.from(dataBuffer));
+  } catch (err) {
+    console.error('Failed to save file:', err);
+  }
 });
+
+async function promptToSave(win, next) {
+  try {
+    const hasUnsaved = await win.webContents.executeJavaScript('window.__hasUnsavedChanges?.()');
+    if (!hasUnsaved) {
+      await next();
+      return;
+    }
+    const { response } = await dialog.showMessageBox(win, {
+      type: 'question',
+      buttons: ['Save', "Don't Save", 'Cancel'],
+      defaultId: 0,
+      cancelId: 2,
+      message: 'You have unsaved changes. What would you like to do?'
+    });
+    if (response === 0) {
+      await win.webContents.executeJavaScript('window.__saveCurrent?.()');
+      await next();
+    } else if (response === 1) {
+      await next();
+    }
+  } catch (e) {
+    console.error('promptToSave failed:', e);
+  }
+}
 
 function firstExisting(paths) { return paths.find(p => p && fs.existsSync(p)); }
 function getIconPath() {
@@ -154,25 +185,27 @@ function setViewerMenu(win) {
         {
           label: 'Back to Home',
           accelerator: 'Alt+Left',
-          click: () => {
+          click: async () => {
             if (!win) return;
-            win.webContents.once('will-prevent-unload', e => e.preventDefault());
-            win.loadFile('file-picker.html');
+            await promptToSave(win, () => win.loadFile('file-picker.html'));
           }
         },
         {
           label: 'Open PDF…',
           accelerator: 'CmdOrCtrl+O',
           click: async () => {
-            const { canceled, filePaths } = await dialog.showOpenDialog({
-              title: 'Open PDF',
-              properties: ['openFile'],
-              filters: [{ name: 'PDF Files', extensions: ['pdf'] }]
+            if (!win) return;
+            await promptToSave(win, async () => {
+              const { canceled, filePaths } = await dialog.showOpenDialog({
+                title: 'Open PDF',
+                properties: ['openFile'],
+                filters: [{ name: 'PDF Files', extensions: ['pdf'] }]
+              });
+              if (!canceled && filePaths?.[0]) {
+                const url = toFileUrl(filePaths[0]);
+                win.webContents.send('open-pdf', url);
+              }
             });
-            if (!canceled && filePaths?.[0]) {
-              const url = toFileUrl(filePaths[0]);
-              win.webContents.send('open-pdf', url);
-            }
           }
         },
         { type: 'separator' },
@@ -180,6 +213,11 @@ function setViewerMenu(win) {
           label: 'Save',
           accelerator: 'CmdOrCtrl+S',
           click: () => { if (win) win.webContents.send('save-pdf'); }
+        },
+        {
+          label: 'Save As…',
+          accelerator: 'CmdOrCtrl+Shift+S',
+          click: () => { if (win) win.webContents.send('save-as-pdf'); }
         },
         { type: 'separator' },
         { role: 'close' },
@@ -233,6 +271,15 @@ function createWindow() {
       mainWindow.webContents.send('open-pdf', pdfToOpen);
       pdfToOpen = null;
     }
+  });
+
+  mainWindow.on('close', async (e) => {
+    if (mainWindow.forceClose) return;
+    e.preventDefault();
+    await promptToSave(mainWindow, () => {
+      mainWindow.forceClose = true;
+      mainWindow.close();
+    });
   });
 
   mainWindow.on('closed', () => { mainWindow = null; });

@@ -347,8 +347,11 @@ See https://github.com/adobe-type-tools/cmap-resources
                     <span data-l10n-id="pdfjs-print-button-label"></span>
                   </button>
 
-                  <button id="downloadButton" class="toolbarButton" type="button" tabindex="0" data-l10n-id="pdfjs-save-button">
-                    <span data-l10n-id="pdfjs-save-button-label"></span>
+                  <button id="saveButton" class="toolbarButton" type="button" tabindex="0" title="Save">
+                    <span>Save</span>
+                  </button>
+                  <button id="downloadButton" class="toolbarButton" type="button" tabindex="0" title="Save As">
+                    <span>Save As</span>
                   </button>
                 </div>
 
@@ -801,6 +804,18 @@ See https://github.com/adobe-type-tools/cmap-resources
     </div> <!-- outerContainer -->
     <div id="printContainer"></div>
 <script>
+function toSystemPath(url) {
+  try {
+    const u = new URL(url);
+    let p = decodeURIComponent(u.pathname);
+    if (p.startsWith('/') && /^[A-Za-z]:/.test(p.slice(1,3))) p = p.slice(1);
+    return p;
+  } catch { return url; }
+}
+
+const originalUrl = decodeURIComponent(new URLSearchParams(location.search).get('file') || '');
+const originalPath = toSystemPath(originalUrl);
+
 /* ---- finalize any active drawing so saves/undo see it ---- */
 function commitEditIfAny() {
   const doneBtn = document.querySelector(
@@ -818,7 +833,14 @@ function commitEditIfAny() {
   document.dispatchEvent(new KeyboardEvent('keyup',   { key: 'Escape', bubbles: true }));
 }
 
-/* ---- SAVE (uses your toolbar export so edits are kept) ---- */
+async function saveDirect() {
+  if (!originalUrl.startsWith('file:') || !originalPath) return;
+  const data = await PDFViewerApplication.pdfDocument.saveDocument();
+  window.electronAPI.saveFile(originalPath, data);
+  PDFViewerApplication.pdfDocument?.annotationStorage?.resetModified?.();
+}
+
+/* ---- SAVE AS (toolbar download) ---- */
 function clickToolbarSave() {
   let btn =
     document.querySelector('[data-tool="save"]') ||
@@ -835,12 +857,33 @@ function clickToolbarSave() {
     });
     guess?.click();
   }
+  PDFViewerApplication.pdfDocument?.annotationStorage?.resetModified?.();
 }
 
 window.electronAPI.onSavePDF(() => {
   commitEditIfAny();
+  saveDirect();
+});
+
+window.electronAPI.onSaveAsPDF(() => {
+  commitEditIfAny();
   setTimeout(clickToolbarSave, 50);
 });
+
+document.getElementById('saveButton')?.addEventListener('click', () => {
+  commitEditIfAny();
+  saveDirect();
+});
+document.getElementById('downloadButton')?.addEventListener('click', () => {
+  commitEditIfAny();
+  setTimeout(() => PDFViewerApplication.pdfDocument?.annotationStorage?.resetModified?.(), 0);
+});
+
+window.__saveCurrent = saveDirect;
+window.__hasUnsavedChanges = () => {
+  commitEditIfAny();
+  return !!PDFViewerApplication.pdfDocument?.annotationStorage?.modified;
+};
 
 /* ---- UNDO / REDO (click the toolbar buttons; has fallbacks) ---- */
 function clickUndo() {
