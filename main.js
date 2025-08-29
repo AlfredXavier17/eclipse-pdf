@@ -127,14 +127,33 @@ ipcMain.on('save-file', (_event, filePath, dataBuffer) => {
   }
 });
 
+
+ipcMain.handle('save-file-as', async (_event, defaultPath, dataBuffer) => {
+  try {
+    const { canceled, filePath } = await dialog.showSaveDialog({
+      title: 'Save PDF As',
+      defaultPath,
+      filters: [{ name: 'PDF Files', extensions: ['pdf'] }]
+    });
+    if (canceled || !filePath) return null;
+    fs.writeFileSync(filePath, Buffer.from(dataBuffer));
+    return toFileUrl(filePath);
+  } catch (err) {
+    console.error('Failed to save as:', err);
+    return null;
+  }
+});
+
 async function promptToSave(win, next) {
   try {
-    const hasUnsaved = await win.webContents.executeJavaScript('window.__hasUnsavedChanges?.()');
+    const hasUnsaved = await win.webContents.executeJavaScript(
+      '(()=>{try{return !!(window.__hasUnsavedChanges && window.__hasUnsavedChanges());}catch(e){return false;}})()'
+    );
     if (!hasUnsaved) {
       await next();
-      return;
+      return true;
     }
-    const { response } = await dialog.showMessageBox(win, {
+    const response = dialog.showMessageBoxSync(win, {
       type: 'question',
       buttons: ['Save', "Don't Save", 'Cancel'],
       defaultId: 0,
@@ -142,13 +161,19 @@ async function promptToSave(win, next) {
       message: 'You have unsaved changes. What would you like to do?'
     });
     if (response === 0) {
-      await win.webContents.executeJavaScript('window.__saveCurrent?.()');
+      await win.webContents.executeJavaScript('window.__saveCurrent?.()').catch(() => {});
       await next();
-    } else if (response === 1) {
-      await next();
+      return true;
     }
+    if (response === 1) {
+      await next();
+      return true;
+    }
+    return false;
   } catch (e) {
     console.error('promptToSave failed:', e);
+    await next();
+    return true;
   }
 }
 

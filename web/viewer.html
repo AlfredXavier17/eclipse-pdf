@@ -813,8 +813,10 @@ function toSystemPath(url) {
   } catch { return url; }
 }
 
-const originalUrl = decodeURIComponent(new URLSearchParams(location.search).get('file') || '');
-const originalPath = toSystemPath(originalUrl);
+
+let originalUrl = decodeURIComponent(new URLSearchParams(location.search).get('file') || '');
+let originalPath = toSystemPath(originalUrl);
+
 
 /* ---- finalize any active drawing so saves/undo see it ---- */
 function commitEditIfAny() {
@@ -838,24 +840,19 @@ async function saveDirect() {
   const data = await PDFViewerApplication.pdfDocument.saveDocument();
   window.electronAPI.saveFile(originalPath, data);
   PDFViewerApplication.pdfDocument?.annotationStorage?.resetModified?.();
+
+  showSaved();
 }
 
-/* ---- SAVE AS (toolbar download) ---- */
-function clickToolbarSave() {
-  let btn =
-    document.querySelector('[data-tool="save"]') ||
-    document.querySelector('button[aria-label*="Save"]') ||
-    document.querySelector('button[title*="Save"]') ||
-    document.querySelector('a[download]') ||
-    document.getElementById('download');
-
-  if (btn) btn.click();
-  else {
-    const guess = Array.from(document.querySelectorAll('button,a')).find(el => {
-      const t = (el.title || el.ariaLabel || el.textContent || '').toLowerCase();
-      return t.includes('save') || t.includes('download');
-    });
-    guess?.click();
+async function saveAs() {
+  if (!PDFViewerApplication.pdfDocument) return;
+  const data = await PDFViewerApplication.pdfDocument.saveDocument();
+  const newUrl = await window.electronAPI.saveFileAs(originalPath, data);
+  if (newUrl) {
+    originalUrl = newUrl;
+    originalPath = toSystemPath(newUrl);
+    PDFViewerApplication.pdfDocument?.annotationStorage?.resetModified?.();
+    showSaved();
   }
   PDFViewerApplication.pdfDocument?.annotationStorage?.resetModified?.();
 }
@@ -867,7 +864,7 @@ window.electronAPI.onSavePDF(() => {
 
 window.electronAPI.onSaveAsPDF(() => {
   commitEditIfAny();
-  setTimeout(clickToolbarSave, 50);
+  saveAs();
 });
 
 document.getElementById('saveButton')?.addEventListener('click', () => {
@@ -876,8 +873,29 @@ document.getElementById('saveButton')?.addEventListener('click', () => {
 });
 document.getElementById('downloadButton')?.addEventListener('click', () => {
   commitEditIfAny();
-  setTimeout(() => PDFViewerApplication.pdfDocument?.annotationStorage?.resetModified?.(), 0);
+  saveAs();
 });
+
+function showSaved() {
+  const alertEl = document.getElementById('viewer-alert');
+  if (!alertEl) return;
+  alertEl.textContent = 'Saved';
+  alertEl.classList.remove('visuallyHidden');
+  setTimeout(() => alertEl.classList.add('visuallyHidden'), 1500);
+}
+
+document.addEventListener('keydown', (e) => {
+  if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 's') {
+    e.preventDefault();
+    e.stopPropagation();
+    commitEditIfAny();
+    if (e.shiftKey) {
+      saveAs();
+    } else {
+      saveDirect();
+    }
+  }
+}, true);
 
 window.__saveCurrent = saveDirect;
 window.__hasUnsavedChanges = () => {
