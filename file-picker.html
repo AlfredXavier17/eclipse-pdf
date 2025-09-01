@@ -5,8 +5,10 @@
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Eclipse PDF</title>
   <meta name="description" content="Open a local PDF or pick from recent files. Eclipse PDF starts fast and respects your privacy." />
-  <link rel="icon" href="assets/icon.png" type="image/png" />
+  <link rel="icon" href="./web/assets/icon.png" type="image/png" />
   <meta name="theme-color" content="#0d0f12" />
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline'; worker-src 'self' blob:; child-src blob:; connect-src 'self' https://www.eclipsepdf.com; img-src 'self' data: blob; style-src 'self' 'unsafe-inline'; font-src 'self' data: blob; object-src 'none'">
+
   <style>
     :root {
       --bg:#0d0f12; --surface:#111419; --surface-2:#151a21; --border:#222831;
@@ -87,7 +89,7 @@
   <header>
     <div class="row">
       <a class="brand" href="#" aria-label="Eclipse PDF">
-        <img src="assets/icon.png" alt="Eclipse PDF logo" />
+        <img src="./web/assets/icon.png" alt="Eclipse PDF logo" />
         <div class="brandText">
           <div class="brandTop">Eclipse</div>
           <div class="brandBottom">PDF</div>
@@ -99,7 +101,7 @@
 
   <main>
     <section class="open card" aria-label="Open a PDF">
-      <img class="logo" src="assets/icon.png" alt="Eclipse PDF logo" />
+      <img class="logo" src="./web/assets/icon.png" alt="Eclipse PDF logo" />
       <h1>Open your PDF</h1>
       <p>Select a file to get started.</p>
       <button class="btn btn-accent" id="btnOpen">Open PDF</button>

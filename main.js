@@ -1,5 +1,7 @@
 // main.js
 const { app, BrowserWindow, ipcMain, dialog, shell, Menu } = require('electron');
+
+
 const path = require('path');
 const fs = require('fs');
 const axios = require('axios');
@@ -182,26 +184,36 @@ async function promptToSave(win, next) {
   }
 }
 
-function firstExisting(paths) { return paths.find(p => p && fs.existsSync(p)); }
+function firstExisting(paths) {
+  for (const p of paths) {
+    try { if (p && fs.existsSync(p)) return p; } catch {}
+  }
+  return undefined;
+}
+
 function getIconPath() {
   if (process.platform === 'win32') {
     return firstExisting([
-      path.join(__dirname, 'assets', 'icon.ico'),
-      path.join(process.resourcesPath, 'icon.ico')
+      path.join(__dirname, 'web', 'assets', 'icon.ico'),
+      path.join(process.resourcesPath, 'web', 'assets', 'icon.ico'),
     ]);
   }
+
   if (process.platform === 'darwin') {
     return firstExisting([
-      path.join(__dirname, 'assets', 'icon.icns'),
-      path.join(__dirname, 'assets', 'icons', 'mac', 'icon.icns')
+      path.join(__dirname, 'web', 'assets', 'icon.icns'),
+      path.join(process.resourcesPath, 'web', 'assets', 'icon.icns'),
     ]);
   }
+
+  // Linux
   return firstExisting([
-    path.join(__dirname, 'assets', 'icon.png'),
-    path.join(__dirname, 'assets', 'icons', 'png', '512x512.png'),
-    path.join(__dirname, 'assets', 'icons', 'png', '256x256.png')
+    path.join(__dirname, 'web', 'assets', 'icon.png'),
+    path.join(process.resourcesPath, 'web', 'assets', 'icon.png'),
   ]);
 }
+
+////
 
 function setHomeMenu() {
   Menu.setApplicationMenu(null);
@@ -217,7 +229,7 @@ function setViewerMenu(win) {
           accelerator: 'Alt+Left',
           click: async () => {
             if (!win) return;
-            await promptToSave(win, () => win.loadFile('file-picker.html'));
+            await promptToSave(win, () => win.loadFile(path.join(__dirname, 'file-picker.html')));
           }
         },
         {
@@ -286,9 +298,9 @@ function createWindow() {
       sandbox: false
     }
   });
+ 
   if (process.platform === 'linux' && iconPath) mainWindow.setIcon(iconPath);
-
-  mainWindow.loadFile('file-picker.html');
+  mainWindow.loadFile(path.join(__dirname, 'file-picker.html'));
   setHomeMenu();
 
   mainWindow.webContents.on('did-navigate', (_e, url) => {

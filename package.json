@@ -27,15 +27,19 @@
     "appId": "com.eclipsepdf.app",
     "productName": "Eclipse PDF",
     "artifactName": "EclipsePDF-${version}-${os}-${arch}.${ext}",
-    "icon": "assets/icon.ico",
     "directories": {
-      "buildResources": "assets"
+      "buildResources": "build"
     },
-    "extraResources": [
-      {
-        "from": "assets/icon.ico",
-        "to": "icon.ico"
-      }
+    "files": [
+      "web/**/*",
+      "file-picker.html",
+      "main.js",
+      "preload.js",
+      "package.json"
+    ],
+    "asar": true,
+    "asarUnpack": [
+      "web/pdf.worker.mjs"
     ],
     "fileAssociations": [
       {
@@ -48,7 +52,7 @@
     ],
     "win": {
       "target": "appx",
-      "icon": "assets/icon.ico"
+      "icon": "build/icon.ico"
     },
     "appx": {
       "publisher": "CN=79C2D2DE-52B5-4CF5-BF5C-95AB0864FB2F",
@@ -60,11 +64,14 @@
     },
     "mac": {
       "target": "dmg",
-      "icon": "assets/icon.icns"
+      "icon": "build/icon.icns"
     },
     "linux": {
-      "target": ["AppImage", "deb"],
-      "icon": "assets/icon.png",
+      "target": [
+        "AppImage",
+        "deb"
+      ],
+      "icon": "build/icons",
       "category": "Utility"
     }
   }
