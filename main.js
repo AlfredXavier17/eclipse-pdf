@@ -261,6 +261,13 @@ function setViewerMenu(win) {
           accelerator: 'CmdOrCtrl+Shift+S',
           click: () => { if (win) win.webContents.send('save-as-pdf'); }
         },
+                {
+                  label: 'Print',
+                  accelerator: 'CmdOrCtrl+P',
+                  click: () => {
+                    if (win) win.webContents.send('print-pdf'); // send message to the viewer
+                  }
+                },
         { type: 'separator' },
         { role: 'close' },
         { role: 'quit' }
@@ -300,8 +307,18 @@ function createWindow() {
   });
  
   if (process.platform === 'linux' && iconPath) mainWindow.setIcon(iconPath);
+  if (pdfToOpen) {
+  mainWindow.loadFile(path.join(__dirname, 'web', 'viewer.html')).then(() => {
+    mainWindow.webContents.once('did-finish-load', () => {
+      mainWindow.webContents.send('open-pdf', pdfToOpen);
+      pdfToOpen = null;
+    });
+  });
+} else {
   mainWindow.loadFile(path.join(__dirname, 'file-picker.html'));
   setHomeMenu();
+}
+
 
   mainWindow.webContents.on('did-navigate', (_e, url) => {
     if (url.includes('web/viewer.html')) setViewerMenu(mainWindow);

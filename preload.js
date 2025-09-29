@@ -30,4 +30,6 @@ contextBridge.exposeInMainWorld('electronAPI', {
 
   // Quick OS string for support payloads
   getPlatform: () => process.platform,
+
+   onPrintPDF: (cb) => ipcRenderer.on('print-pdf', () => cb())
 });

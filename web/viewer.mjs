@@ -17174,3 +17174,15 @@ document.addEventListener("DOMContentLoaded", () => {
     }
   });
 });
+
+
+if (window.electronAPI && window.electronAPI.onPrintPDF) {
+  window.electronAPI.onPrintPDF(() => {
+    // Make sure PDF.js is ready before printing
+    if (window.PDFViewerApplication && window.PDFViewerApplication.pdfViewer) {
+      window.print();
+    } else {
+      console.warn('PDF not ready yet for printing');
+    }
+  });
+}
