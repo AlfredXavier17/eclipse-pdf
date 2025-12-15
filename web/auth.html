@@ -1,0 +1,280 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Eclipse PDF – Sign In</title>
+
+  <meta http-equiv="Content-Security-Policy"
+    content="
+      default-src 'self';
+      script-src 'self' 'unsafe-inline' https://www.gstatic.com;
+      style-src 'self' 'unsafe-inline';
+      connect-src https://identitytoolkit.googleapis.com https://securetoken.googleapis.com;
+    ">
+
+  <style>
+    :root {
+      --bg:#0d0f12;
+      --surface:#111419;
+      --border:#222831;
+      --text:#e7ebf1;
+      --muted:#8892a0;
+      --accent:#5cc8ff;
+    }
+
+    body {
+      margin:0;
+      background:var(--bg);
+      font-family:system-ui, sans-serif;
+      color:var(--text);
+      display:flex;
+      align-items:center;
+      justify-content:center;
+      min-height:100vh;
+    }
+
+    .container {
+      background:var(--surface);
+      border:1px solid var(--border);
+      border-radius:16px;
+      padding:40px 32px;
+      width:100%;
+      max-width:420px;
+      text-align:center;
+      position:relative;
+    }
+
+    h2 { margin-bottom:8px; }
+    .subtitle { color:var(--muted); font-size:14px; margin-bottom:24px; }
+
+    input {
+      width:100%;
+      padding:12px;
+      margin-bottom:12px;
+      border-radius:8px;
+      border:1px solid var(--border);
+      background:#0f1217;
+      color:var(--text);
+    }
+
+    .password-wrap {
+      position:relative;
+    }
+
+    .eye {
+      position:absolute;
+      right:12px;
+      top:12px;
+      cursor:pointer;
+      color:var(--muted);
+      user-select:none;
+    }
+
+    button {
+      width:100%;
+      padding:12px;
+      border-radius:10px;
+      border:none;
+      font-weight:600;
+      font-size:15px;
+      cursor:pointer;
+      background:white;
+      color:#111;
+      margin-top:6px;
+    }
+
+    button.secondary {
+      background:#1a1f27;
+      color:var(--text);
+      border:1px solid var(--border);
+    }
+
+    .link {
+      margin-top:14px;
+      font-size:13px;
+      color:var(--accent);
+      cursor:pointer;
+    }
+
+    #status {
+      margin-top:16px;
+      font-size:13px;
+      min-height:18px;
+    }
+
+    .error { color:#ff7b7b; }
+    .success { color:#7bffb6; }
+
+    .back {
+      position:absolute;
+      left:16px;
+      top:16px;
+      font-size:13px;
+      color:var(--muted);
+      cursor:pointer;
+    }
+
+    .hidden { display:none; }
+  </style>
+</head>
+<body>
+
+<div class="container">
+
+  <div class="back" onclick="goHome()">← Back</div>
+
+  <!-- SIGN IN -->
+  <div id="signin">
+    <h2>Welcome back</h2>
+    <div class="subtitle">Sign in to continue</div>
+
+    <input id="signin-email" type="email" placeholder="Email" />
+    <div class="password-wrap">
+      <input id="signin-password" type="password" placeholder="Password" />
+      <span class="eye" onclick="togglePass('signin-password')">👁️</span>
+    </div>
+
+    <button onclick="signIn()">Sign In</button>
+
+    <div class="link" onclick="showSignup()">Create an account</div>
+  </div>
+
+  <!-- SIGN UP -->
+  <div id="signup" class="hidden">
+    <h2>Create account</h2>
+    <div class="subtitle">No email verification needed</div>
+
+    <input id="signup-email" type="email" placeholder="Email" />
+    <div class="password-wrap">
+      <input id="signup-password" type="password" placeholder="Password" />
+      <span class="eye" onclick="togglePass('signup-password')">👁️</span>
+    </div>
+
+    <div class="password-wrap">
+      <input id="signup-confirm" type="password" placeholder="Confirm password" />
+      <span class="eye" onclick="togglePass('signup-confirm')">👁️</span>
+    </div>
+
+    <button onclick="signUp()">Create Account</button>
+    <button class="secondary" onclick="showSignin()">Back to Sign In</button>
+  </div>
+
+  <div id="status"></div>
+</div>
+<script type="module">
+  import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
+  import {
+    getAuth,
+    signInWithEmailAndPassword,
+    createUserWithEmailAndPassword
+  } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
+
+  const firebaseConfig = {
+    apiKey: "AIzaSyD3z-UEp6wBUIbj8_vWY-I5YIbrZ4h7FUo",
+    authDomain: "eclipsepdf.firebaseapp.com",
+    projectId: "eclipsepdf",
+    appId: "1:211863215182:web:ebe4b6b8f9b1082ffd371f"
+  };
+
+  const auth = getAuth(initializeApp(firebaseConfig));
+  const statusEl = document.getElementById("status");
+  const show = (msg, cls = "") => {
+    statusEl.textContent = msg;
+    statusEl.className = cls;
+  };
+
+  async function syncUserToBackend(user) {
+    try {
+      await fetch("https://eclipse-pdf-backend.onrender.com/sync-user", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          uid: user.uid,
+          email: user.email,
+          displayName: user.displayName || user.email
+        })
+      });
+    } catch (err) {
+      console.error("Sync user failed:", err);
+    }
+  }
+
+  window.togglePass = (id) => {
+    const i = document.getElementById(id);
+    i.type = i.type === "password" ? "text" : "password";
+  };
+
+  window.showSignup = () => {
+    document.getElementById("signin").classList.add("hidden");
+    document.getElementById("signup").classList.remove("hidden");
+    show("");
+  };
+
+  window.showSignin = () => {
+    document.getElementById("signup").classList.add("hidden");
+    document.getElementById("signin").classList.remove("hidden");
+    show("");
+  };
+
+  window.signIn = async () => {
+    try {
+      show("Signing in…");
+      const res = await signInWithEmailAndPassword(
+        auth,
+        document.getElementById('signin-email').value,
+        document.getElementById('signin-password').value
+      );
+      const userInfo = {
+        uid: res.user.uid,
+        email: res.user.email,
+        displayName: res.user.email.split("@")[0]
+      };
+      await window.electronAPI.authDone(userInfo);
+      await syncUserToBackend(userInfo);
+      show("Success! Redirecting…", "success");
+      setTimeout(() => window.location.href = "../file-picker.html", 500);
+    } catch (e) {
+      show(e.message, "error");
+    }
+  };
+
+  window.signUp = async () => {
+    if (document.getElementById('signup-password').value !== document.getElementById('signup-confirm').value) {
+      show("Passwords do not match", "error");
+      return;
+    }
+
+    try {
+      show("Creating account…");
+      const res = await createUserWithEmailAndPassword(
+        auth,
+        document.getElementById('signup-email').value,
+        document.getElementById('signup-password').value
+      );
+      const userInfo = {
+        uid: res.user.uid,
+        email: res.user.email,
+        displayName: res.user.email.split("@")[0]
+      };
+      await window.electronAPI.authDone(userInfo);
+      await syncUserToBackend(userInfo);
+      show("Account created! Redirecting…", "success");
+      setTimeout(() => window.location.href = "../file-picker.html", 500);
+    } catch (e) {
+      show(e.message, "error");
+    }
+  };
+
+  window.goHome = () => {
+    window.location.href = "../file-picker.html";
+  };
+
+  window.onload = () => {
+  document.getElementById("signin-email")?.focus();
+};
+
+</script>
+
+
+</body>
+</html>

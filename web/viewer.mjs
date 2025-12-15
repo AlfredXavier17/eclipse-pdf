@@ -17186,3 +17186,167 @@ if (window.electronAPI && window.electronAPI.onPrintPDF) {
     }
   });
 }
+
+// =======================
+// DAILY USAGE TIMER DISPLAY (LIVE COUNTDOWN)
+// =======================
+// The PDF viewer displays a small countdown timer for free users (1 hour per day).
+// When the limit is reached, a modal prompts the user to upgrade. For premium
+// users we hide the timer entirely and instead show a manage subscription option.
+
+const trialTimerDisplay = document.getElementById('trialTimerDisplay');
+const trialTimerText = document.getElementById('trialTimerText');
+// Optional overlays for premium users and time-up dialog
+const manageSubscriptionDisplay = document.getElementById('manageSubscriptionDisplay');
+const manageSubscriptionButton = document.getElementById('manageSubscriptionButton');
+const timeUpDialog = document.getElementById('timeUpDialog');
+const timeUpUpgradeBtn = document.getElementById('timeUpUpgradeBtn');
+
+let timerUpdateInterval = null;
+let countdownInterval = null;
+let localRemainingSeconds = 0;
+
+// Format seconds as H:MM:SS
+function formatUsageTime(totalSeconds) {
+  totalSeconds = Math.max(0, Math.floor(totalSeconds));
+  const hours = Math.floor(totalSeconds / 3600);
+  const minutes = Math.floor((totalSeconds % 3600) / 60);
+  const seconds = totalSeconds % 60;
+  return `${hours}:${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
+}
+
+// Update timer on screen
+function updateTimerDisplay() {
+  if (!trialTimerText || localRemainingSeconds < 0) return;
+
+  trialTimerText.textContent = `${formatUsageTime(localRemainingSeconds)} left`;
+
+  // Change to red in final 5 minutes
+  if (localRemainingSeconds < 300) {
+    trialTimerDisplay.classList.add('warning');
+  } else {
+    trialTimerDisplay.classList.remove('warning');
+  }
+
+  // If time is up, block the viewer and show upgrade prompt
+  if (localRemainingSeconds <= 0) {
+    if (countdownInterval) clearInterval(countdownInterval);
+    if (timerUpdateInterval) clearInterval(timerUpdateInterval);
+    if (window.electronAPI?.stopPdfTimer) {
+      window.electronAPI.stopPdfTimer();
+    }
+    if (timeUpDialog && typeof timeUpDialog.showModal === 'function') {
+      timeUpDialog.showModal();
+    } else {
+      alert(
+        'Your 1 hour of free usage for today is over. The daily limit resets at 3 AM local time. Upgrade for unlimited access.'
+      );
+    }
+  }
+}
+
+// Sync with backend to get remaining seconds
+async function syncWithBackend() {
+  try {
+    const remaining = await window.electronAPI?.getRemainingSeconds?.();
+    if (remaining === undefined || remaining === null) {
+      return;
+    }
+
+    // Premium users
+    if (remaining === Infinity) {
+      if (trialTimerDisplay) trialTimerDisplay.style.display = 'none';
+      if (manageSubscriptionDisplay) manageSubscriptionDisplay.style.display = 'block';
+      if (timerUpdateInterval) clearInterval(timerUpdateInterval);
+      if (countdownInterval) clearInterval(countdownInterval);
+      return;
+    }
+
+    // Free users
+    if (manageSubscriptionDisplay) manageSubscriptionDisplay.style.display = 'none';
+    if (trialTimerDisplay) {
+      trialTimerDisplay.style.display = 'block';
+    }
+    localRemainingSeconds = Math.max(0, Math.floor(remaining));
+    updateTimerDisplay();
+  } catch (err) {
+    console.error('Error syncing daily usage timer:', err);
+  }
+}
+
+// Start tracking when PDF opens
+if (window.electronAPI?.startPdfTimer) {
+  window.electronAPI.startPdfTimer();
+}
+
+// Initial sync
+syncWithBackend();
+
+// Refresh every 15 seconds
+timerUpdateInterval = setInterval(syncWithBackend, 15000);
+
+// Smooth countdown
+countdownInterval = setInterval(() => {
+  if (localRemainingSeconds > 0) {
+    localRemainingSeconds--;
+    updateTimerDisplay();
+  }
+}, 1000);
+
+// Upgrade button in time-up dialog
+if (timeUpUpgradeBtn) {
+  timeUpUpgradeBtn.addEventListener('click', async () => {
+    try {
+      const result = await window.electronAPI?.createCheckoutSession?.();
+      if (result?.url) {
+        window.electronAPI?.openExternal?.(result.url);
+      } else if (result?.error) {
+        alert(result.error);
+      }
+    } catch (e) {
+      console.error('Error creating checkout session:', e);
+    }
+  });
+}
+
+// Manage subscription for premium users
+if (manageSubscriptionButton) {
+  manageSubscriptionButton.addEventListener('click', async () => {
+    try {
+      const result = await window.electronAPI?.manageSubscription?.();
+      if (result?.url) {
+        window.electronAPI?.openExternal?.(result.url);
+      } else if (result?.error) {
+        alert(result.error);
+      }
+    } catch (e) {
+      console.error('Error opening subscription portal:', e);
+    }
+  });
+}
+
+// Stop timer when leaving
+window.addEventListener('beforeunload', () => {
+  if (window.electronAPI?.stopPdfTimer) {
+    window.electronAPI.stopPdfTimer();
+  }
+  if (timerUpdateInterval) {
+    clearInterval(timerUpdateInterval);
+  }
+  if (countdownInterval) {
+    clearInterval(countdownInterval);
+  }
+});
+
+// Stop timer when window closes or navigates away
+window.addEventListener('beforeunload', () => {
+  if (window.electronAPI?.stopPdfTimer) {
+    window.electronAPI.stopPdfTimer();
+  }
+  if (timerUpdateInterval) {
+    clearInterval(timerUpdateInterval);
+  }
+  if (countdownInterval) {
+    clearInterval(countdownInterval);
+  }
+});

@@ -2,258 +2,765 @@
 <html lang="en">
 <head>
   <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Eclipse PDF</title>
-  <meta name="description" content="Open a local PDF or pick from recent files. Eclipse PDF starts fast and respects your privacy." />
-  <link rel="icon" href="./web/assets/icon.png" type="image/png" />
+  <link rel="icon" href="./web/assets/icon.png" />
   <meta name="theme-color" content="#0d0f12" />
-  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline'; worker-src 'self' blob:; child-src blob:; connect-src 'self' https://www.eclipsepdf.com; img-src 'self' data: blob; style-src 'self' 'unsafe-inline'; font-src 'self' data: blob; object-src 'none'">
 
   <style>
+    * { box-sizing:border-box; margin:0; padding:0 }
+
     :root {
-      --bg:#0d0f12; --surface:#111419; --surface-2:#151a21; --border:#222831;
-      --fg:#e7ebf1; --muted:#a5afbd; --accent:#5cc8ff; --accent-600:#47b1e6;
-      --radius:12px; --shadow-sm:0 2px 8px rgba(0,0,0,.35);
+      --bg:#0f1419;
+      --panel:#1a1f26;
+      --panel-hover:#222831;
+      --border:#2d333b;
+      --text:#e6edf3;
+      --text-muted:#8d96a0;
+      --accent:#58a6ff;
+      --accent-hover:#4493e1;
     }
-    *{box-sizing:border-box} html,body{height:100%}
-    body{
-      margin:0;font-family:ui-sans-serif,system-ui,-apple-system,"Segoe UI",Inter,Roboto,Arial,sans-serif;
-      background:var(--bg);color:var(--fg);display:grid;grid-template-rows:auto 1fr auto;min-height:100dvh;
+
+    body {
+      font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;
+      background:var(--bg);
+      color:var(--text);
+      display:grid;
+      grid-template-rows:auto 1fr auto;
+      height:100vh;
+      overflow:hidden;
     }
 
-    /* header */
-    header{border-bottom:1px solid var(--border);background:var(--surface)}
-    .row{max-width:1100px;margin:0 auto;padding:12px 16px;display:flex;align-items:center;justify-content:space-between;gap:12px}
-    .brand{display:flex;align-items:center;gap:10px;text-decoration:none;color:inherit}
-    .brand img{width:24px;height:24px;border-radius:6px}
-    .brandText{line-height:1}
-    .brandTop{font-size:12px;letter-spacing:.18em;text-transform:uppercase;color:rgba(231,235,241,.6)}
-    .brandBottom{margin-top:-2px;font-weight:800;font-size:18px}
-
-    /* controls */
-    .btn{
-      appearance:none;border:1px solid var(--border);background:var(--surface-2);
-      color:inherit;border-radius:10px;cursor:pointer;font-weight:600;font-size:14px;
-      padding:8px 12px;transition:background .15s ease,transform .1s ease;
+    /* ===== HEADER ===== */
+    header {
+      background:var(--panel);
+      border-bottom:1px solid var(--border);
+      padding:14px 24px;
     }
-    .btn:hover{background:#181e26} .btn:active{transform:translateY(1px)}
-    .btn-accent{background:var(--accent);color:#04131c;border:none;padding:12px 28px;font-weight:700;box-shadow:var(--shadow-sm)}
-    .btn-accent:hover{background:var(--accent-600)}
-    .input{width:100%;min-width:160px;max-width:320px;padding:10px 14px;border-radius:999px;border:1px solid var(--border);background:var(--surface-2);color:var(--fg)}
 
-    /* layout */
-    main{
-      max-width:1100px;margin:0 auto;padding:20px 16px 36px;display:grid;gap:16px;
-      grid-template-columns:1.15fr .85fr;align-items:stretch;
+    .header-row {
+      max-width:1400px;
+      margin:0 auto;
+      display:flex;
+      justify-content:space-between;
+      align-items:center;
     }
-    @media (max-width:900px){main{grid-template-columns:1fr}}
-    .card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);box-shadow:var(--shadow-sm);overflow:hidden}
 
-    .open{padding:24px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:20px;min-width:0;height:clamp(520px,62vh,640px);text-align:center}
-    .open .logo{width:64px;height:64px;opacity:.9}
-    .open h1{margin:4px 0 0;font-size:clamp(24px,5vw,32px);letter-spacing:.2px}
-    .open p{margin:0;color:var(--muted)}
-    .open .tiles{display:flex;gap:10px;justify-content:center;width:100%}
-    .tile{flex:1;max-width:120px;border:1px solid var(--border);border-radius:10px;padding:10px;background:var(--surface-2);text-align:center}
-    .tile strong{display:block;font-weight:700}
-    .tile small{color:var(--muted)}
-    .hidden{display:none}
+    .logo {
+      display:flex;
+      align-items:center;
+      gap:10px;
+      font-size:15px;
+      font-weight:600;
+    }
 
-    .side{display:flex;flex-direction:column;min-width:0;height:clamp(520px,62vh,640px)}
-    .recents{padding:12px;display:flex;flex-direction:column;gap:12px;border-bottom:1px solid var(--border);flex:1;min-height:0}
-    .rec-head{display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap}
-    .rec-head h2{margin:0;font-size:clamp(18px,4vw,22px)}
+    .logo img { width:24px; height:24px }
 
-    .list{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:10px;min-height:0;flex:1;overflow:auto}
-    .list.empty{justify-content:center;align-items:center}
-    .list.empty::before{content:"No recent files yet";color:var(--muted);font-size:14px;border:1px dashed var(--border);border-radius:10px;padding:12px 14px;display:block;max-width:260px;text-align:center}
+    .logo small {
+      text-transform:uppercase;
+      font-size:10px;
+      letter-spacing:0.1em;
+      opacity:0.6;
+      display:block;
+      line-height:1;
+    }
 
-    .item{display:grid;grid-template-columns:1fr auto;gap:10px;align-items:center;padding:10px 12px;border:1px solid var(--border);border-radius:10px;background:var(--surface-2);min-width:0}
-    .item:hover{background:#171c23}
-    .item.selected{outline:2px solid var(--accent)}
-    .path{min-width:0}
-    .path strong{display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-    .meta{color:var(--muted);font-size:12px}
-    .truncate{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-    .itm-actions{display:flex;gap:8px}
+    .logo strong {
+      font-size:16px;
+      display:block;
+      margin-top:2px;
+    }
 
-    .tips{padding:14px 16px 18px;color:var(--muted);font-size:14px;background:var(--surface-2);border-top:1px solid var(--border)}
-    .tips h3{margin:0 0 6px;font-size:clamp(18px,4vw,22px);color:var(--fg)}
-    .tips kbd{font-family:ui-monospace,SFMono-Regular,Menlo,Monaco,Consolas,monospace;border:1px solid var(--border);border-bottom-width:2px;border-radius:4px;padding:2px 6px;background:var(--surface);color:var(--fg)}
+    .auth-info {
+      display:flex;
+      align-items:center;
+      gap:16px;
+      font-size:13px;
+      color:var(--text-muted);
+    }
 
-    footer{border-top:1px solid var(--border);color:var(--muted);font-size:13px;background:var(--surface)}
-    .foot{max-width:1100px;margin:0 auto;padding:12px 16px;display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap}
+    .sign-out-btn {
+      background:transparent;
+      border:1px solid var(--border);
+      color:var(--text);
+      padding:6px 14px;
+      border-radius:6px;
+      cursor:pointer;
+      font-size:13px;
+      font-weight:500;
+    }
+
+    .sign-out-btn:hover {
+      background:var(--panel-hover);
+    }
+
+    /* ===== MAIN LAYOUT ===== */
+    main {
+      max-width:1400px;
+      margin:0 auto;
+      width:100%;
+      padding:20px;
+      display:grid;
+      grid-template-columns:1fr 1.5fr;
+      gap:20px;
+      overflow:hidden;
+    }
+
+    /* ===== LEFT PANEL ===== */
+    .main-panel {
+      background:var(--panel);
+      border:1px solid var(--border);
+      border-radius:12px;
+      padding:32px 24px;
+      display:flex;
+      flex-direction:column;
+      align-items:center;
+      text-align:center;
+      gap:16px;
+      overflow-y:auto;
+    }
+
+    .main-icon {
+      width:56px;
+      height:56px;
+      margin-bottom:0;
+    }
+
+    .main-panel h1 {
+      font-size:26px;
+      font-weight:700;
+      margin-bottom:0;
+    }
+
+    .main-panel .subtitle {
+      color:var(--text-muted);
+      font-size:14px;
+      margin-bottom:8px;
+    }
+
+    .open-btn {
+      background:var(--accent);
+      color:#0d1117;
+      border:none;
+      padding:10px 28px;
+      border-radius:8px;
+      font-size:14px;
+      font-weight:700;
+      cursor:pointer;
+      margin-bottom:12px;
+    }
+
+    .open-btn:hover {
+      background:var(--accent-hover);
+    }
+
+    /* Premium Card */
+    .premium-card {
+      background:linear-gradient(135deg, #1a2332 0%, #0f1822 100%);
+      border:1px solid var(--accent);
+      border-radius:10px;
+      padding:16px 20px;
+      max-width:fit-content;
+      width:auto;
+      text-align:left;
+      margin:0 auto;
+      min-width:280px;
+    }
+
+    .premium-card h3 {
+      font-size:16px;
+      font-weight:700;
+      margin-bottom:6px;
+      display:flex;
+      align-items:center;
+      gap:6px;
+    }
+
+    .premium-card .tagline {
+      color:var(--text-muted);
+      margin-bottom:12px;
+      font-size:14px;
+    }
+
+    .premium-card ul {
+      list-style:none;
+      margin-bottom:14px;
+    }
+
+    .premium-card li {
+      padding:4px 0;
+      font-size:14px;
+      display:flex;
+      align-items:center;
+      gap:6px;
+    }
+
+    .upgrade-btn {
+      width:auto;
+      background:linear-gradient(135deg, var(--accent) 0%, #7dd3fc 100%);
+      color:#0d1117;
+      border:none;
+      padding:9px 24px;
+      border-radius:8px;
+      font-size:13px;
+      font-weight:800;
+      cursor:pointer;
+      display:block;
+      margin:0 auto;
+    }
+
+    .upgrade-btn:hover {
+      opacity:0.9;
+    }
+
+    /* ===== RIGHT SIDEBAR ===== */
+    .sidebar {
+      display:flex;
+      flex-direction:column;
+      gap:16px;
+      overflow:hidden;
+    }
+
+    .recent-section {
+      background:var(--panel);
+      border:1px solid var(--border);
+      border-radius:12px;
+      padding:16px;
+      flex:1;
+      display:flex;
+      flex-direction:column;
+      overflow:hidden;
+    }
+
+    .recent-header {
+      display:flex;
+      justify-content:space-between;
+      align-items:center;
+      margin-bottom:12px;
+    }
+
+    .recent-header h2 {
+      font-size:18px;
+      font-weight:700;
+    }
+
+    .search-box {
+      background:var(--bg);
+      border:1px solid var(--border);
+      padding:8px 12px;
+      border-radius:6px;
+      color:var(--text);
+      font-size:13px;
+      margin-bottom:12px;
+      width:100%;
+      outline:none;
+    }
+
+    .search-box:focus {
+      border-color:var(--accent);
+    }
+
+    .clear-btn {
+      background:transparent;
+      border:none;
+      color:var(--accent);
+      font-size:13px;
+      cursor:pointer;
+      font-weight:600;
+    }
+
+    .clear-btn:hover {
+      text-decoration:underline;
+    }
+
+    .recent-list {
+      flex:1;
+      overflow-y:auto;
+      display:flex;
+      flex-direction:column;
+      gap:8px;
+    }
+
+    .recent-item {
+      background:var(--bg);
+      border:1px solid var(--border);
+      border-radius:8px;
+      padding:12px;
+      cursor:pointer;
+    }
+
+    .recent-item:hover {
+      background:var(--panel-hover);
+    }
+
+    .recent-item-title {
+      font-size:13px;
+      font-weight:600;
+      margin-bottom:4px;
+      overflow:hidden;
+      text-overflow:ellipsis;
+      white-space:nowrap;
+    }
+
+    .recent-item-path {
+      font-size:11px;
+      color:var(--text-muted);
+      overflow:hidden;
+      text-overflow:ellipsis;
+      white-space:nowrap;
+    }
+
+    .recent-item-meta {
+      font-size:11px;
+      color:var(--text-muted);
+      margin-top:4px;
+    }
+
+    .recent-actions {
+      display:flex;
+      gap:8px;
+      margin-top:8px;
+    }
+
+    .recent-btn {
+      background:transparent;
+      border:1px solid var(--border);
+      color:var(--text);
+      padding:4px 12px;
+      border-radius:4px;
+      font-size:12px;
+      cursor:pointer;
+      font-weight:600;
+    }
+
+    .recent-btn:hover {
+      background:var(--panel-hover);
+    }
+
+    .recent-btn.del:hover {
+      border-color:#f85149;
+      color:#f85149;
+    }
+
+    .empty-state {
+      text-align:center;
+      color:var(--text-muted);
+      padding:32px;
+      font-size:13px;
+    }
+
+    /* Tips Section */
+    .tips-section {
+      background:var(--panel);
+      border:1px solid var(--border);
+      border-radius:12px;
+      padding:16px;
+    }
+
+    .tips-section h3 {
+      font-size:16px;
+      font-weight:700;
+      margin-bottom:12px;
+    }
+
+    .tips-section p {
+      font-size:13px;
+      color:var(--text-muted);
+      line-height:1.6;
+    }
+
+    .tips-section kbd {
+      background:var(--bg);
+      border:1px solid var(--border);
+      padding:2px 6px;
+      border-radius:4px;
+      font-family:monospace;
+      font-size:12px;
+    }
+
+    /* ===== FOOTER ===== */
+    footer {
+      background:var(--panel);
+      border-top:1px solid var(--border);
+      padding:12px 24px;
+      font-size:12px;
+      color:var(--text-muted);
+    }
+
+    .footer-row {
+      max-width:1400px;
+      margin:0 auto;
+      display:flex;
+      justify-content:space-between;
+      align-items:center;
+    }
+
+    .footer-link {
+      color:var(--accent);
+      text-decoration:none;
+      cursor:pointer;
+    }
+
+    .footer-link:hover {
+      text-decoration:underline;
+    }
+
+    .hidden { display:none !important }
   </style>
 </head>
 <body>
-  <header>
-    <div class="row">
-      <a class="brand" href="#" aria-label="Eclipse PDF">
-        <img src="./web/assets/icon.png" alt="Eclipse PDF logo" />
-        <div class="brandText">
-          <div class="brandTop">Eclipse</div>
-          <div class="brandBottom">PDF</div>
-        </div>
-      </a>
-      <!-- (Support button removed from header) -->
+
+<header>
+  <div class="header-row">
+    <div class="logo">
+      <img src="./web/assets/icon.png" />
+      <div>
+        <small>ECLIPSE</small>
+        <strong>PDF</strong>
+      </div>
     </div>
-  </header>
 
-  <main>
-    <section class="open card" aria-label="Open a PDF">
-      <img class="logo" src="./web/assets/icon.png" alt="Eclipse PDF logo" />
-      <h1>Open your PDF</h1>
-      <p>Select a file to get started.</p>
-      <button class="btn btn-accent" id="btnOpen">Open PDF</button>
-      <input class="hidden" type="file" id="fileInput" accept="application/pdf,.pdf" />
-      <div class="tiles">
-        <div class="tile"><strong>Open</strong><small>Ctrl + O</small></div>
-        <div class="tile"><strong>Select</strong><small>Arrow Up / Down</small></div>
-        <div class="tile"><strong>Open selected</strong><small>Enter</small></div>
-      </div>
-    </section>
-
-    <aside class="side card">
-      <div class="recents">
-        <div class="rec-head">
-          <h2>Recent</h2>
-          <div style="display:flex; gap:10px; align-items:center; min-width:0">
-            <input class="input" id="search" placeholder="Search…" />
-            <button class="btn" id="clearRecents">Clear</button>
-          </div>
-        </div>
-        <ul class="list" id="recentList"></ul>
-      </div>
-
-      <div class="tips">
-        <h3>Tips</h3>
-        <div>Open: <kbd>Ctrl + O</kbd> · Select: <kbd>Up</kbd> / <kbd>Down</kbd> · Open selected: <kbd>Enter</kbd></div>
-        <div style="margin-top:6px">Private & offline — your PDFs stay on your device.</div>
-      </div>
-    </aside>
-  </main>
-
-  <footer>
-    <div class="foot">
-      <div><span id="version">v0.1</span> • Local & private</div>
-      <a href="#" id="openSupport" class="btn">Support</a>
+    <div class="auth-info">
+      <span id="userDisplay" class="hidden">Signed in as <span id="userName"></span></span>
+      <button class="sign-out-btn hidden" id="signOutBtn">Sign out</button>
+      <button class="sign-out-btn" id="signInBtn">Sign in</button>
     </div>
-  </footer>
+  </div>
+</header>
 
-  <script>
-    const $ = (s) => document.querySelector(s);
-    const recentKey = 'eclipsepdf.recents.v1';
+<main>
+  <!-- LEFT PANEL -->
+  <div class="main-panel">
+    <img src="./web/assets/icon.png" class="main-icon" />
+    <h1>Open your PDF</h1>
+    <p class="subtitle">Select a file to get started.</p>
 
-    function prettyName(p, fb='Document'){
-      try{
-        const s=decodeURIComponent(String(p||''));const base=s.split(/[\\\/]/).pop()||s;
-        return base.replace(/^file:\/\/\/?/,'')||fb;
-      }catch{return fb;}
-    }
-    function decodedPath(p){
-      try{return decodeURIComponent(String(p||'')).replace(/^file:\/\/\/?/,'');}
-      catch{return String(p||'');}
-    }
-    function toViewerPath(p){
-      if(!p)return null;
-      const isUrl=/^https?:\/\//i.test(p)||/^file:\/\//i.test(p);
-      const formatted=isUrl?p:`file://${String(p).replace(/\\/g,'/')}`;
-      return `web/viewer.html?file=${encodeURIComponent(formatted)}`;
-    }
+    <button class="open-btn" id="openBtn">Open PDF</button>
 
-    let viewList=[];let selectedViewIdx=-1;
-    function loadAll(){try{return JSON.parse(localStorage.getItem(recentKey)||'[]');}catch{return[];}}
-    function saveAll(list){localStorage.setItem(recentKey,JSON.stringify(list.slice(0,50)));}
-    function pushRecent(entry){
-      const all=loadAll();const filtered=all.filter(x=>x.path!==entry.path);
-      filtered.unshift({...entry,at:Date.now()});saveAll(filtered);renderRecents($('#search').value||'');
-    }
-    function deleteRecentByOriginalIndex(idx){
-      const all=loadAll();all.splice(idx,1);saveAll(all);renderRecents($('#search').value||'');
-    }
-    function humanTime(ts){try{return new Date(ts).toLocaleString();}catch{return'';}}
+    <div class="premium-card">
+      <h3>💎 Eclipse PDF Premium</h3>
+      <p class="tagline">Unlimited PDF reading time</p>
+      <ul>
+        <li>⏳ Free users get 1 hour per session</li>
+        <li>📊 Perfect for long reading sessions</li>
+        <li>💗 Support continued development</li>
+      </ul>
+      <button class="upgrade-btn hidden" id="upgradeBtn">Upgrade for $1.99/month</button>
+<button class="upgrade-btn hidden" id="manageSubBtn">Manage Subscription</button>      
+    </div>
+  </div>
 
-    function renderRecents(filter=''){
-      const ul=$('#recentList');const all=loadAll();
-      const q=filter.trim().toLowerCase();
-      viewList=(q?all.filter(x=>`${x.name} ${x.path}`.toLowerCase().includes(q)):all)
-        .map(v=>({...v,_idx:all.indexOf(v)}));
-      ul.innerHTML='';ul.classList.toggle('empty',!viewList.length);
-      if(!viewList.length){selectedViewIdx=-1;return;}
-      viewList.forEach((x,i)=>{
-        const li=document.createElement('li');li.className='item';li.dataset.viewIndex=i;
-        li.innerHTML=`<div style="min-width:0">
-            <div class="path" title="${decodedPath(x.path)}"><strong>${prettyName(x.name||x.path)}</strong></div>
-            <div class="meta truncate">${decodedPath(x.path)}</div>
-            <div class="meta">Opened ${humanTime(x.at)}</div>
-          </div>
-          <div class="itm-actions">
-            <button class="btn" data-open>Open</button>
-            <button class="btn" data-remove>Del</button>
-          </div>`;
-        li.querySelector('[data-open]').addEventListener('click',()=>openTarget(x.path));
-        li.querySelector('[data-remove]').addEventListener('click',()=>deleteRecentByOriginalIndex(x._idx));
-        li.addEventListener('dblclick',()=>openTarget(x.path));
-        li.addEventListener('click',()=>selectRow(i));
-        ul.appendChild(li);
-      });
-      if(selectedViewIdx>=viewList.length)selectedViewIdx=viewList.length-1;
-      updateSelectionUI();
-    }
+  <!-- RIGHT SIDEBAR -->
+  <div class="sidebar">
+    <div class="recent-section">
+      <div class="recent-header">
+        <h2>Recent</h2>
+        <button class="clear-btn" id="clearBtn">Clear</button>
+      </div>
+      <input type="text" class="search-box" placeholder="Search..." id="searchBox" />
+      <div class="recent-list" id="recentList">
+        <div class="empty-state">No recent files yet</div>
+      </div>
+    </div>
 
-    function updateSelectionUI(){
-      const items=[...document.querySelectorAll('#recentList .item')];
-      items.forEach((li,i)=>li.classList.toggle('selected',i===selectedViewIdx));
-      if(selectedViewIdx>=0&&items[selectedViewIdx])items[selectedViewIdx].scrollIntoView({block:'nearest'});
-    }
-    function selectRow(i){selectedViewIdx=i;updateSelectionUI();}
-    function openSelected(){if(selectedViewIdx<0||selectedViewIdx>=viewList.length)return;openTarget(viewList[selectedViewIdx].path);}
-    function openTarget(p){const href=toViewerPath(p);if(href)location.href=href;}
+    <div class="tips-section">
+      <h3>Tips</h3>
+      <p>
+        Open: <kbd>Ctrl</kbd> + <kbd>O</kbd> · Select: <kbd>Up</kbd> / <kbd>Down</kbd> · Open selected: <kbd>Enter</kbd>
+      </p>
+      <p style="margin-top:8px">
+        Private & offline — your PDFs stay on your device.
+      </p>
+    </div>
+  </div>
+</main>
 
-    const fileInput=$('#fileInput');
-    $('#btnOpen').addEventListener('click',async()=>{
-      const filePath=await window.electronAPI?.selectPDF?.();
-      if(filePath){
-        const name=String(filePath).split(/[\\\/]/).pop();
-        pushRecent({name,path:filePath});openTarget(filePath);
-      }else{
-        fileInput.click();
-      }
+<footer>
+  <div class="footer-row">
+    <span id="version">v1.0.6 • Local & private</span>
+    <a href="#" class="footer-link" id="supportLink">Support</a>
+  </div>
+</footer>
+
+<script>
+  const $ = id => document.getElementById(id);
+  const RECENT_KEY = 'recentFiles';
+  let recents = [];
+  let currentUser = null;
+
+  // ===== LOAD USER =====
+  async function loadUser() {
+    try {
+      currentUser = await window.electronAPI?.getUser?.();
+      updateAuthUI();
+    } catch (e) {
+      console.error('Load user failed:', e);
+    }
+  }
+
+  function updateAuthUI() {
+    if (currentUser) {
+      $('userDisplay').classList.remove('hidden');
+      $('signOutBtn').classList.remove('hidden');
+      $('signInBtn').classList.add('hidden');
+      $('userName').textContent = currentUser.email || currentUser.displayName || 'User';
+    } else {
+      $('userDisplay').classList.add('hidden');
+      $('signOutBtn').classList.add('hidden');
+      $('signInBtn').classList.remove('hidden');
+    }
+  }
+
+  // ===== RECENT FILES =====
+  function loadRecents() {
+    try {
+      const raw = localStorage.getItem(RECENT_KEY);
+      recents = raw ? JSON.parse(raw) : [];
+      renderRecents();
+    } catch {
+      recents = [];
+    }
+  }
+
+  function saveRecents() {
+    try {
+      localStorage.setItem(RECENT_KEY, JSON.stringify(recents));
+    } catch (e) {
+      console.warn('Save recents failed:', e);
+    }
+  }
+
+  function addRecent(filePath) {
+    const idx = recents.findIndex(r => r.path === filePath);
+    if (idx >= 0) recents.splice(idx, 1);
+
+    const filename = filePath.split(/[/\\]/).pop() || filePath;
+    recents.unshift({
+      path: filePath,
+      filename: filename,
+      openedAt: Date.now()
     });
-    fileInput.addEventListener('change',(e)=>{
-      const f=e.target.files?.[0];
-      if(f){pushRecent({name:f.name,path:f.path||f.name});openTarget(f.path||f.name);}
-      e.target.value='';
-    });
-    $('#clearRecents').addEventListener('click',()=>{localStorage.removeItem(recentKey);renderRecents();});
-    $('#search').addEventListener('input',(e)=>renderRecents(e.target.value));
-    window.addEventListener('keydown',(e)=>{
-      if(e.ctrlKey&&e.key.toLowerCase()==='o'){e.preventDefault();$('#btnOpen').click();}
-      if(e.key==='ArrowDown'){e.preventDefault();if(viewList.length){selectedViewIdx=Math.min(viewList.length-1,selectedViewIdx+1);updateSelectionUI();}}
-      if(e.key==='ArrowUp'){e.preventDefault();if(viewList.length){selectedViewIdx=Math.max(0,selectedViewIdx-1);updateSelectionUI();}}
-      if(e.key==='Enter'){e.preventDefault();openSelected();}
-    });
+
+    if (recents.length > 20) recents = recents.slice(0, 20);
+    saveRecents();
     renderRecents();
-    window.addEventListener('dragover',e=>e.preventDefault(),true);
-    window.addEventListener('drop',e=>e.preventDefault(),true);
+  }
 
-    /* ===== Support opens browser ===== */
-    function openSupportPage(){
-      if(window.electronAPI?.openExternal){
-        window.electronAPI.openExternal("https://www.eclipsepdf.com/#support");
-      }else{
-        window.open("https://www.eclipsepdf.com/#support","_blank");
-      }
+  function renderRecents(filter = '') {
+    const list = $('recentList');
+    list.innerHTML = '';
+
+    const filtered = filter
+      ? recents.filter(r => r.filename.toLowerCase().includes(filter.toLowerCase()))
+      : recents;
+
+    if (filtered.length === 0) {
+      list.innerHTML = '<div class="empty-state">No recent files yet</div>';
+      return;
     }
-    $('#openSupport').addEventListener('click',e=>{e.preventDefault();openSupportPage();});
 
-    /* ===== Show app version from Electron ===== */
-    (async () => {
-      try{
-        const ver = await window.electronAPI?.getVersion?.();
-        if (ver) document.getElementById('version').textContent = `v${ver}`;
-      }catch{/* ignore */}
-    })();
-  </script>
+    filtered.forEach((r, idx) => {
+      const div = document.createElement('div');
+      div.className = 'recent-item';
+
+      const date = new Date(r.openedAt);
+      const dateStr = date.toLocaleString('en-US', {
+        month: 'numeric',
+        day: 'numeric',
+        year: 'numeric',
+        hour: 'numeric',
+        minute: '2-digit',
+        hour12: true
+      });
+
+      div.innerHTML = `
+        <div class="recent-item-title">${r.filename}</div>
+        <div class="recent-item-path">${r.path}</div>
+        <div class="recent-item-meta">Opened ${dateStr}</div>
+        <div class="recent-actions">
+          <button class="recent-btn open-recent">Open</button>
+          <button class="recent-btn del">Del</button>
+        </div>
+      `;
+
+      div.querySelector('.open-recent').onclick = (e) => {
+        e.stopPropagation();
+        openPDF(r.path);
+      };
+
+      div.querySelector('.del').onclick = (e) => {
+        e.stopPropagation();
+        recents.splice(idx, 1);
+        saveRecents();
+        renderRecents(filter);
+      };
+
+      list.appendChild(div);
+    });
+  }
+
+  // ===== OPEN PDF =====
+  async function openPDF(filePath) {
+    try {
+      // Check trial limit (works for both signed-in and guest users)
+      const remaining = await window.electronAPI?.getRemainingSeconds?.();
+
+      if (remaining !== Infinity && remaining <= 0) {
+        // Time is up - show upgrade/sign-in prompt
+        const msg = currentUser
+          ? 'Your free daily limit is used. Upgrade to Pro for unlimited access.'
+          : 'Your free 1-hour daily limit is used. Sign in to sync your usage or upgrade to Pro for unlimited access.';
+
+        alert(msg);
+        return;
+      }
+
+      // Open PDF
+      addRecent(filePath);
+      const encoded = encodeURIComponent(filePath);
+      location.href = `./web/viewer.html?file=${encoded}`;
+    } catch (e) {
+      console.error('Open PDF failed:', e);
+    }
+  }
+
+  // ===== EVENT HANDLERS =====
+  $('openBtn').onclick = async () => {
+    try {
+      const filePath = await window.electronAPI?.selectPDF?.();
+      if (filePath) await openPDF(filePath);
+    } catch (e) {
+      console.error('Select PDF failed:', e);
+    }
+  };
+
+  $('upgradeBtn').onclick = async () => {
+    try {
+      const result = await window.electronAPI?.createCheckoutSession?.();
+      if (result?.url) {
+        window.electronAPI?.openExternal?.(result.url);
+      } else if (result?.error) {
+        alert(result.error);
+      }
+    } catch (e) {
+      console.error('Upgrade failed:', e);
+    }
+  };
+
+  $('manageSubBtn').onclick = async () => {
+  try {
+    const result = await window.electronAPI?.manageSubscription?.();
+    if (result?.url) {
+      window.electronAPI?.openExternal?.(result.url);
+    } else if (result?.error) {
+      alert(result.error);
+    }
+  } catch (e) {
+    console.error('Manage subscription failed:', e);
+  }
+};
+
+
+  $('signInBtn').onclick = () => {
+    location.href = './web/auth.html';
+  };
+
+  $('signOutBtn').onclick = async () => {
+    try {
+      await window.electronAPI?.signOut?.();
+      currentUser = null;
+      updateAuthUI();
+    } catch (e) {
+      console.error('Sign out failed:', e);
+    }
+  };
+
+  $('clearBtn').onclick = () => {
+    if (confirm('Clear all recent files?')) {
+      recents = [];
+      saveRecents();
+      renderRecents();
+    }
+  };
+
+  $('searchBox').oninput = (e) => {
+    renderRecents(e.target.value);
+  };
+
+  $('supportLink').onclick = (e) => {
+    e.preventDefault();
+    window.electronAPI?.openExternal?.('https://www.eclipsepdf.com/#support');
+  };
+
+  // ===== DRAG & DROP =====
+  document.addEventListener('dragover', e => e.preventDefault());
+  document.addEventListener('drop', async (e) => {
+    e.preventDefault();
+    const file = e.dataTransfer?.files?.[0];
+    if (file?.path?.toLowerCase().endsWith('.pdf')) {
+      const url = `file://${file.path.replace(/\\/g, '/')}`;
+      await openPDF(url);
+    }
+  });
+
+  // ===== KEYBOARD SHORTCUTS =====
+  document.addEventListener('keydown', (e) => {
+    if ((e.ctrlKey || e.metaKey) && e.key === 'o') {
+      e.preventDefault();
+      $('openBtn').click();
+    }
+  });
+
+
+ // ===== INIT =====
+loadRecents();
+loadUser().then(() => {
+  syncUser();          // Make sure backend knows who's signed in
+  checkEntitlement();  // THEN ask backend if user is Pro
+});
+
+
+async function syncUser() {
+  try {
+    if (!currentUser?.uid || !currentUser?.email) return;
+    await fetch("https://eclipse-pdf-backend.onrender.com/sync-user", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        uid: currentUser.uid,
+        email: currentUser.email,
+        displayName: currentUser.displayName || currentUser.email
+      })
+    });
+  } catch (err) {
+    console.error("❌ Failed to sync user:", err);
+  }
+}
+
+
+  // Listen for PDF open events
+  window.electronAPI?.onOpenPDF?.(filePath => openPDF(filePath));
+async function checkEntitlement() {
+  try {
+    const remaining = await window.electronAPI?.getRemainingSeconds?.();
+    const isPro = remaining === Infinity;
+
+    if (isPro) {
+      $('manageSubBtn')?.classList.remove('hidden');
+      $('upgradeBtn')?.classList.add('hidden');
+    } else {
+      $('manageSubBtn')?.classList.add('hidden');
+      $('upgradeBtn')?.classList.remove('hidden');
+    }
+  } catch (e) {
+    console.warn('No internet — assuming user is Pro for now');
+    // Just in case we can't reach the server, assume Pro so user is not locked out
+    $('manageSubBtn')?.classList.remove('hidden');
+    $('upgradeBtn')?.classList.add('hidden');
+  }
+}
+
+
+</script>
+
 </body>
 </html>

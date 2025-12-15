@@ -1,8 +1,8 @@
 // preload.js
-const { contextBridge, ipcRenderer, shell } = require('electron');
+const { contextBridge, ipcRenderer } = require('electron');
 
 contextBridge.exposeInMainWorld('electronAPI', {
-  /* ---------- existing methods you already had ---------- */
+  /* ---------- PDF operations ---------- */
   selectPDF: async () => ipcRenderer.invoke('select-pdf'),
   onOpenPDF: (cb) => ipcRenderer.on('open-pdf', (_e, filePath) => cb(filePath)),
   onSavePDF: (cb) => ipcRenderer.on('save-pdf', () => cb()),
@@ -11,25 +11,29 @@ contextBridge.exposeInMainWorld('electronAPI', {
   onMenuRedo: (cb) => ipcRenderer.on('menu-redo', () => cb()),
   saveFile: (filePath, data) => ipcRenderer.send('save-file', filePath, data),
   saveFileAs: (filePath, data) => ipcRenderer.invoke('save-file-as', filePath, data),
+  onPrintPDF: (cb) => ipcRenderer.on('print-pdf', () => cb()),
 
-  /* ---------- new: always open links in the default browser ---------- */
-  openExternal: (url) => {
-    try {
-      if (typeof url === 'string' && url.startsWith('http')) {
-        shell.openExternal(url);
-      }
-    } catch (e) {
-      // swallow errors; UI can fall back to window.open
-    }
-  },
+  /* ---------- External links ---------- */
+  openExternal: (url) => ipcRenderer.invoke('open-external', url),
 
-  /* ---------- optional helpers (safe to keep) ---------- */
-  // Ask main for your app version (implement handler in main if you want exact version)
-  getVersion: () =>
-    ipcRenderer.invoke('get-app-version').catch(() => 'unknown'),
-
-  // Quick OS string for support payloads
+  /* ---------- App version ---------- */
+  getVersion: () => ipcRenderer.invoke('get-app-version').catch(() => 'unknown'),
   getPlatform: () => process.platform,
 
-   onPrintPDF: (cb) => ipcRenderer.on('print-pdf', () => cb())
+  /* ---------- Authentication ---------- */
+  authDone: (userData) => ipcRenderer.invoke('auth-done', userData),
+  getUser: () => ipcRenderer.invoke('get-user'),
+  signOut: () => ipcRenderer.invoke('sign-out'),
+
+  // ✅ ADD THIS
+  openGoogleAuth: () => ipcRenderer.invoke('open-google-auth'),
+
+  /* ---------- Trial & Premium ---------- */
+  getRemainingSeconds: () => ipcRenderer.invoke('get-remaining-seconds'),
+  startPdfTimer: () => ipcRenderer.invoke('start-pdf-timer'),
+  stopPdfTimer: () => ipcRenderer.invoke('stop-pdf-timer'),
+
+  /* ---------- Stripe Checkout ---------- */
+  createCheckoutSession: () => ipcRenderer.invoke('create-checkout-session'),
+  manageSubscription: () => ipcRenderer.invoke('manage-subscription')
 });

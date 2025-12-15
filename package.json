@@ -1,6 +1,6 @@
 {
   "name": "eclipse-pdf",
-  "version": "1.0.1",
+  "version": "1.0.6",
   "main": "main.js",
   "description": "A modern PDF reader and editor with powerful annotation tools and customizable themes.",
   "author": {
@@ -51,7 +51,10 @@
       }
     ],
     "win": {
-      "target": "appx",
+      "target": [
+        "nsis",
+        "portable"
+      ],
       "icon": "build/icon.ico"
     },
     "appx": {

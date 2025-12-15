@@ -1,0 +1,202 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Upgrade to Pro - Eclipse PDF</title>
+  <style>
+    :root {
+      --bg:#0d0f12; --surface:#111419; --surface-2:#151a21; --border:#222831;
+      --fg:#e7ebf1; --muted:#a5afbd; --accent:#5cc8ff; --accent-600:#47b1e6;
+    }
+    *{box-sizing:border-box; margin:0; padding:0}
+    body{
+      font-family:ui-sans-serif,system-ui,-apple-system,"Segoe UI",sans-serif;
+      background:var(--bg);
+      color:var(--fg);
+      min-height:100vh;
+      display:flex;
+      align-items:center;
+      justify-content:center;
+      padding:20px;
+    }
+    .container{
+      max-width:600px;
+      width:100%;
+      background:var(--surface);
+      border:1px solid var(--border);
+      border-radius:16px;
+      padding:40px;
+      text-align:center;
+    }
+    .logo{
+      width:80px;
+      height:80px;
+      border-radius:16px;
+      margin-bottom:24px;
+    }
+    h1{
+      font-size:32px;
+      margin-bottom:12px;
+      background:linear-gradient(135deg, var(--accent) 0%, #7bffb6 100%);
+      -webkit-background-clip:text;
+      -webkit-text-fill-color:transparent;
+      background-clip:text;
+    }
+    .subtitle{
+      font-size:18px;
+      color:var(--muted);
+      margin-bottom:32px;
+    }
+    .features{
+      background:var(--surface-2);
+      border:1px solid var(--border);
+      border-radius:12px;
+      padding:24px;
+      margin-bottom:32px;
+      text-align:left;
+    }
+    .feature{
+      display:flex;
+      align-items:flex-start;
+      gap:12px;
+      margin-bottom:16px;
+    }
+    .feature:last-child{margin-bottom:0}
+    .feature-icon{
+      font-size:24px;
+      line-height:1;
+      flex-shrink:0;
+    }
+    .feature-text{
+      flex:1;
+    }
+    .feature-text strong{
+      display:block;
+      font-size:16px;
+      margin-bottom:4px;
+      color:var(--fg);
+    }
+    .feature-text p{
+      font-size:14px;
+      color:var(--muted);
+      line-height:1.5;
+    }
+    .price{
+      font-size:48px;
+      font-weight:700;
+      margin-bottom:8px;
+      color:var(--accent);
+    }
+    .price-subtitle{
+      font-size:14px;
+      color:var(--muted);
+      margin-bottom:24px;
+    }
+    .btn{
+      appearance:none;
+      border:none;
+      background:linear-gradient(135deg, var(--accent) 0%, #47b1e6 100%);
+      color:#04131c;
+      border-radius:12px;
+      cursor:pointer;
+      font-weight:700;
+      font-size:18px;
+      padding:16px 48px;
+      transition:transform .15s ease, box-shadow .15s ease;
+      text-decoration:none;
+      display:inline-block;
+      box-shadow:0 4px 16px rgba(92,200,255,0.3);
+    }
+    .btn:hover{
+      transform:translateY(-2px);
+      box-shadow:0 6px 24px rgba(92,200,255,0.4);
+    }
+    .btn:active{transform:translateY(0)}
+    .back{
+      display:inline-block;
+      margin-top:24px;
+      color:var(--muted);
+      text-decoration:none;
+      font-size:14px;
+      transition:color .15s ease;
+    }
+    .back:hover{color:var(--fg)}
+  </style>
+</head>
+<body>
+  <div class="container">
+    <img src="./assets/icon.png" alt="Eclipse PDF" class="logo" />
+    <h1>Upgrade to Eclipse PDF Pro</h1>
+    <p class="subtitle">Unlock unlimited PDF viewing forever</p>
+
+    <div class="features">
+      <div class="feature">
+        <div class="feature-icon">⏱️</div>
+        <div class="feature-text">
+          <strong>Unlimited Time</strong>
+          <p>No more 10-hour limit. View PDFs for as long as you want, whenever you want.</p>
+        </div>
+      </div>
+
+      <div class="feature">
+        <div class="feature-icon">🔒</div>
+        <div class="feature-text">
+          <strong>Privacy First</strong>
+          <p>Everything stays local on your device. No cloud, no tracking, no subscriptions.</p>
+        </div>
+      </div>
+
+      <div class="feature">
+        <div class="feature-icon">✨</div>
+        <div class="feature-text">
+          <strong>All Features Included</strong>
+          <p>Full access to annotations, highlights, dark mode, and all future updates.</p>
+        </div>
+      </div>
+
+      <div class="feature">
+        <div class="feature-icon">🔑</div>
+        <div class="feature-text">
+          <strong>Instant Activation</strong>
+          <p>Get your license key immediately after purchase. Activate in seconds.</p>
+        </div>
+      </div>
+    </div>
+
+    <div class="price">$4.99</div>
+    <p class="price-subtitle">One-time payment • Lifetime access</p>
+
+    <a href="https://xaviercraft7.gumroad.com/l/pxvsgw" id="buyBtn" class="btn" target="_blank">
+      Get Eclipse PDF Pro
+    </a>
+
+    <div style="margin-top:32px; padding:20px; background:var(--surface-2); border:1px solid var(--border); border-radius:12px; text-align:left;">
+      <h3 style="margin:0 0 16px; font-size:16px; color:var(--fg); text-align:center;">How to Activate Your License</h3>
+      <ol style="margin:0; padding-left:20px; color:var(--muted); font-size:14px; line-height:2;">
+        <li><strong style="color:var(--fg);">Click the button above</strong> to purchase on Gumroad ($4.99)</li>
+        <li><strong style="color:var(--fg);">Check your email</strong> - Gumroad will send your license key instantly</li>
+        <li><strong style="color:var(--fg);">Copy the license key</strong> from the email</li>
+        <li><strong style="color:var(--fg);">Return to Eclipse PDF</strong> and click "Enter License Key"</li>
+        <li><strong style="color:var(--fg);">Paste and activate</strong> - Enjoy unlimited access forever!</li>
+      </ol>
+    </div>
+
+    <br>
+    <a href="../file-picker.html" class="back">← Back to app</a>
+  </div>
+
+  <script>
+    // Open Gumroad link in default browser
+    document.getElementById('buyBtn').addEventListener('click', (e) => {
+      e.preventDefault();
+      const url = e.target.href;
+      if (window.electronAPI && window.electronAPI.openExternal) {
+        window.electronAPI.openExternal(url);
+      } else {
+        window.open(url, '_blank');
+      }
+    });
+  </script>
+</body>
+</html>
