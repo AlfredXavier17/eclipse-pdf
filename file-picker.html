@@ -440,7 +440,7 @@
       <h3>💎 Eclipse PDF Premium</h3>
       <p class="tagline">Unlimited PDF reading time</p>
       <ul>
-        <li>⏳ Free users get 1 hour per session</li>
+        <li>⏳ Free users: <strong>1 hour per day, every day</strong></li>
         <li>📊 Perfect for long reading sessions</li>
         <li>💗 Support continued development</li>
       </ul>
@@ -476,7 +476,7 @@
 
 <footer>
   <div class="footer-row">
-    <span id="version">v1.0.6 • Local & private</span>
+    <span id="version">v1.0.7 • Local & private</span>
     <a href="#" class="footer-link" id="supportLink">Support</a>
   </div>
 </footer>
@@ -530,15 +530,23 @@
   }
 
   function addRecent(filePath) {
-    const idx = recents.findIndex(r => r.path === filePath);
+    
+    let decodedPath;
+try {
+  decodedPath = decodeURIComponent(filePath);
+} catch {
+  decodedPath = filePath;
+}
+    const idx = recents.findIndex(r => r.path === decodedPath);
     if (idx >= 0) recents.splice(idx, 1);
 
-    const filename = filePath.split(/[/\\]/).pop() || filePath;
+    const filename = decodedPath.split(/[/\\]/).pop() || decodedPath;
     recents.unshift({
-      path: filePath,
-      filename: filename,
-      openedAt: Date.now()
-    });
+  path: decodedPath,
+  filename: filename,
+  openedAt: Date.now()
+});
+
 
     if (recents.length > 20) recents = recents.slice(0, 20);
     saveRecents();
@@ -574,7 +582,7 @@
 
       div.innerHTML = `
         <div class="recent-item-title">${r.filename}</div>
-        <div class="recent-item-path">${r.path}</div>
+        <div class="recent-item-path">${r.path.replace(/^file:\/\/\//, '')}</div>
         <div class="recent-item-meta">Opened ${dateStr}</div>
         <div class="recent-actions">
           <button class="recent-btn open-recent">Open</button>

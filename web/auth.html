@@ -115,6 +115,10 @@
     }
 
     .hidden { display:none; }
+
+    body {
+  pointer-events: auto !important;
+          }
   </style>
 </head>
 <body>
@@ -269,9 +273,16 @@
     window.location.href = "../file-picker.html";
   };
 
-  window.onload = () => {
-  document.getElementById("signin-email")?.focus();
-};
+ window.addEventListener("DOMContentLoaded", () => {
+  // Force Electron to refocus window after popup closes
+  setTimeout(() => {
+    window.focus();
+    document.body.focus();
+
+    const emailInput = document.getElementById("signin-email");
+    if (emailInput) emailInput.focus();
+  }, 80);
+});
 
 </script>
 
