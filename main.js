@@ -1,112 +1,17 @@
 // main.js
 const { app, BrowserWindow, ipcMain, dialog, shell, Menu } = require('electron');
 
-
 const path = require('path');
 const fs = require('fs');
-const axios = require('axios');
 const { pathToFileURL, fileURLToPath } = require('url');
 
 if (process.platform === 'win32') {
   app.setAppUserModelId('com.eclipsepdf.app');
   app.setName('Eclipse PDF');
 }
-const currentVersion = app.getVersion();
-
-// Backend URL - UPDATE THIS AFTER YOU DEPLOY
-const BACKEND_URL = 'https://eclipse-pdf-backend.onrender.com';
 
 let mainWindow;
 let pdfToOpen = null;
-
-/* ===== Local storage for user auth ===== */
-function getUserDataPath() {
-  return path.join(app.getPath("userData"), "user.json");
-}
-
-function getUsagePath() {
-  return path.join(app.getPath("userData"), "usage.json");
-}
-
-function loadUser() {
-  try {
-    const userDataPath = getUserDataPath();
-    if (!fs.existsSync(userDataPath)) {
-      return null;
-    }
-    return JSON.parse(fs.readFileSync(userDataPath, "utf8"));
-  } catch {
-    return null;
-  }
-}
-
-function saveUser(userData) {
-  try {
-    const userDataPath = getUserDataPath();
-    fs.writeFileSync(userDataPath, JSON.stringify(userData, null, 2), "utf8");
-  } catch (err) {
-    console.error("Failed to save user:", err);
-  }
-}
-
-// Get today's date string (YYYY-MM-DD) in local timezone
-function getTodayDateString() {
-  const now = new Date();
-  if (now.getHours() < 3) {
-    // If before 3 AM, count it as yesterday
-    now.setDate(now.getDate() - 1);
-  }
-  return now.toLocaleDateString('en-CA'); // Returns YYYY-MM-DD
-}
-
-
-function loadUsage() {
-  try {
-    const usagePath = getUsagePath();
-    if (!fs.existsSync(usagePath)) {
-      return {
-        dailySecondsUsed: 0,
-        lastResetDate: getTodayDateString()
-      };
-    }
-    const data = JSON.parse(fs.readFileSync(usagePath, "utf8"));
-
-    // Check if we need to reset (new day)
-    const today = getTodayDateString();
-    const lastReset = data.lastResetDate || today;
-
-    if (today !== lastReset) {
-      // New day! Reset the counter
-      return {
-        dailySecondsUsed: 0,
-        lastResetDate: today
-      };
-    }
-
-    return {
-      dailySecondsUsed: data.dailySecondsUsed || 0,
-      lastResetDate: lastReset
-    };
-  } catch {
-    return {
-      dailySecondsUsed: 0,
-      lastResetDate: getTodayDateString()
-    };
-  }
-}
-
-function saveUsage(dailySecondsUsed) {
-  try {
-    const usagePath = getUsagePath();
-    const data = {
-      dailySecondsUsed,
-      lastResetDate: getTodayDateString()
-    };
-    fs.writeFileSync(usagePath, JSON.stringify(data, null, 2), "utf8");
-  } catch (err) {
-    console.error("Failed to save usage:", err);
-  }
-}
 
 /* ===== IPC helpers ===== */
 ipcMain.handle('get-app-version', () => app.getVersion());
@@ -118,198 +23,6 @@ ipcMain.handle('open-external', (_e, url) => {
   } catch {}
   return false;
 });
-
-/* ===== Auth IPC handlers ===== */
-ipcMain.handle('auth-done', async (_event, userData) => {
-  // Save user data locally
-  saveUser(userData);
-
-  // Create/sync user in Firestore via backend
-  try {
-    await axios.post(`${BACKEND_URL}/sync-user`, {
-      uid: userData.uid,
-      email: userData.email,
-      displayName: userData.displayName
-    });
-  } catch (err) {
-    console.error('Failed to sync user to backend:', err);
-  }
-
-  return { success: true };
-});
-
-ipcMain.handle('get-user', () => {
-  return loadUser();
-});
-
-ipcMain.handle('sign-out', () => {
-  try {
-    const userDataPath = getUserDataPath();
-    if (fs.existsSync(userDataPath)) {
-      fs.unlinkSync(userDataPath);
-    }
-    return { success: true };
-  } catch (err) {
-    console.error('Failed to sign out:', err);
-    return { success: false };
-  }
-});
-
-/* ===== Trial tracking ===== */
-let timerStartTime = null;
-let timerInterval = null;
-
-function updateUsageTime() {
-  if (!timerStartTime) return;
-
-  const usage = loadUsage();
-  const now = Date.now();
-  const elapsedMs = now - timerStartTime;
-  const elapsedSeconds = Math.floor(elapsedMs / 1000);
-
-  const newSecondsUsed = usage.dailySecondsUsed + elapsedSeconds;
-  saveUsage(newSecondsUsed);
-
-  timerStartTime = now;
-
-  // Sync to backend if user is signed in
-  const user = loadUser();
-  if (user?.uid) {
-    syncUsageToBackend(user.uid, newSecondsUsed).catch(console.error);
-  }
-}
-
-async function syncUsageToBackend(uid, dailySecondsUsed) {
-  try {
-    await axios.post(`${BACKEND_URL}/sync-usage`, {
-      uid,
-      dailySecondsUsed,
-      date: getTodayDateString()
-    });
-  } catch (err) {
-    console.error('Failed to sync usage to backend:', err);
-  }
-}
-
-// IPC: Start PDF timer
-ipcMain.handle("start-pdf-timer", () => {
-  if (timerStartTime) return;
-  timerStartTime = Date.now();
-  timerInterval = setInterval(() => {
-    if (timerStartTime) {
-      updateUsageTime();
-    }
-  }, 5000); // Every 5 seconds
-});
-
-// IPC: Stop PDF timer
-ipcMain.handle("stop-pdf-timer", () => {
-  if (timerInterval) {
-    clearInterval(timerInterval);
-    timerInterval = null;
-  }
-  updateUsageTime();
-  timerStartTime = null;
-});
-
-// IPC: Get remaining trial seconds
-ipcMain.handle("get-remaining-seconds", async () => {
-  const user = loadUser();
-
-  // Check premium status from backend if user is signed in
-  if (user?.uid) {
-    try {
-      const response = await axios.post(`${BACKEND_URL}/entitlement`, {
-        uid: user.uid
-      });
-
-      if (response.data.isPremium) {
-        return Infinity; // Unlimited for premium users
-      }
-
-      // Return trial time from backend
-      if (response.data.trialSecondsRemaining !== undefined) {
-        return response.data.trialSecondsRemaining;
-      }
-    } catch (err) {
-      console.error('Failed to check entitlement:', err);
-    }
-  }
-
-  // Fallback to local trial tracking (1 hour per day)
-  const usage = loadUsage();
-  const DAILY_LIMIT_SECONDS = 3600; // 1 hour per day
-  return Math.max(0, DAILY_LIMIT_SECONDS - usage.dailySecondsUsed);
-});
-
-// IPC: Create Stripe checkout session
-ipcMain.handle("create-checkout-session", async (_event) => {
-  const user = loadUser();
-
-  if (!user?.uid) {
-    return { error: "You must be signed in to upgrade" };
-  }
-
-  try {
-    const response = await axios.post(`${BACKEND_URL}/create-checkout-session`, {
-      uid: user.uid,
-      email: user.email
-    });
-
-    return { url: response.data.url };
-  } catch (err) {
-    console.error('Failed to create checkout session:', err);
-    return { error: err.message };
-  }
-});
-
-// IPC: Manage subscription (open Stripe customer portal)
-ipcMain.handle("manage-subscription", async (_event) => {
-  const user = loadUser();
-
-  if (!user?.uid) {
-    return { error: "You must be signed in" };
-  }
-
-  try {
-    const response = await axios.post(`${BACKEND_URL}/manage-subscription`, {
-      uid: user.uid
-    });
-
-    return { url: response.data.url };
-  } catch (err) {
-    console.error('Failed to get customer portal:', err);
-    return { error: err.message };
-  }
-});
-
-async function checkForUpdates() {
-  try {
-    // read version info from YOUR website
-    const res = await axios.get('https://www.eclipsepdf.com/version.json', { timeout: 8000 });
-    const data = res.data;
-
-    if (data?.latestVersion && data.latestVersion !== currentVersion) {
-      // choose the right link for this OS
-      const downloadLink = process.platform === 'win32'
-        ? data.windowsStoreLink
-        : data.linuxAppImageLink;
-
-      const choice = dialog.showMessageBoxSync({
-        type: 'info',
-        buttons: ['Open download page', 'Later'],
-        defaultId: 0,
-        title: 'Update Available',
-        message: `A new version (${data.latestVersion}) is available.`,
-        detail: data.changelog || ''
-      });
-
-      if (choice === 0 && downloadLink) shell.openExternal(downloadLink);
-    }
-  } catch (err) {
-    console.log('Update check failed:', err.message);
-  }
-}
 
 
 function toFileUrl(p) {
@@ -558,8 +271,7 @@ function createWindow() {
       preload: path.join(__dirname, 'preload.js'),
       contextIsolation: true,
       nodeIntegration: false,
-      sandbox: false,
-      webSecurity: false
+      sandbox: false
     }
   });
  
@@ -605,7 +317,6 @@ function createWindow() {
 
 app.whenReady().then(() => {
   createWindow();
-  if (app.isPackaged && !process.windowsStore) checkForUpdates();
 });
 app.on('window-all-closed', () => { if (process.platform !== 'darwin') app.quit(); });
 app.on('activate', () => { if (BrowserWindow.getAllWindows().length === 0) createWindow(); });

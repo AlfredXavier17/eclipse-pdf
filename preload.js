@@ -18,22 +18,5 @@ contextBridge.exposeInMainWorld('electronAPI', {
 
   /* ---------- App version ---------- */
   getVersion: () => ipcRenderer.invoke('get-app-version').catch(() => 'unknown'),
-  getPlatform: () => process.platform,
-
-  /* ---------- Authentication ---------- */
-  authDone: (userData) => ipcRenderer.invoke('auth-done', userData),
-  getUser: () => ipcRenderer.invoke('get-user'),
-  signOut: () => ipcRenderer.invoke('sign-out'),
-
-  // ✅ ADD THIS
-  openGoogleAuth: () => ipcRenderer.invoke('open-google-auth'),
-
-  /* ---------- Trial & Premium ---------- */
-  getRemainingSeconds: () => ipcRenderer.invoke('get-remaining-seconds'),
-  startPdfTimer: () => ipcRenderer.invoke('start-pdf-timer'),
-  stopPdfTimer: () => ipcRenderer.invoke('stop-pdf-timer'),
-
-  /* ---------- Stripe Checkout ---------- */
-  createCheckoutSession: () => ipcRenderer.invoke('create-checkout-session'),
-  manageSubscription: () => ipcRenderer.invoke('manage-subscription')
+  getPlatform: () => process.platform
 });

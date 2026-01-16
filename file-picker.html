@@ -419,11 +419,6 @@
       </div>
     </div>
 
-    <div class="auth-info">
-      <span id="userDisplay" class="hidden">Signed in as <span id="userName"></span></span>
-      <button class="sign-out-btn hidden" id="signOutBtn">Sign out</button>
-      <button class="sign-out-btn" id="signInBtn">Sign in</button>
-    </div>
   </div>
 </header>
 
@@ -435,18 +430,6 @@
     <p class="subtitle">Select a file to get started.</p>
 
     <button class="open-btn" id="openBtn">Open PDF</button>
-
-    <div class="premium-card">
-      <h3>💎 Eclipse PDF Premium</h3>
-      <p class="tagline">Unlimited PDF reading time</p>
-      <ul>
-        <li>⏳ Free users: <strong>1 hour per day, every day</strong></li>
-        <li>📊 Perfect for long reading sessions</li>
-        <li>💗 Support continued development</li>
-      </ul>
-      <button class="upgrade-btn hidden" id="upgradeBtn">Upgrade for $1.99/month</button>
-<button class="upgrade-btn hidden" id="manageSubBtn">Manage Subscription</button>      
-    </div>
   </div>
 
   <!-- RIGHT SIDEBAR -->
@@ -485,30 +468,6 @@
   const $ = id => document.getElementById(id);
   const RECENT_KEY = 'recentFiles';
   let recents = [];
-  let currentUser = null;
-
-  // ===== LOAD USER =====
-  async function loadUser() {
-    try {
-      currentUser = await window.electronAPI?.getUser?.();
-      updateAuthUI();
-    } catch (e) {
-      console.error('Load user failed:', e);
-    }
-  }
-
-  function updateAuthUI() {
-    if (currentUser) {
-      $('userDisplay').classList.remove('hidden');
-      $('signOutBtn').classList.remove('hidden');
-      $('signInBtn').classList.add('hidden');
-      $('userName').textContent = currentUser.email || currentUser.displayName || 'User';
-    } else {
-      $('userDisplay').classList.add('hidden');
-      $('signOutBtn').classList.add('hidden');
-      $('signInBtn').classList.remove('hidden');
-    }
-  }
 
   // ===== RECENT FILES =====
   function loadRecents() {
@@ -609,20 +568,6 @@ try {
   // ===== OPEN PDF =====
   async function openPDF(filePath) {
     try {
-      // Check trial limit (works for both signed-in and guest users)
-      const remaining = await window.electronAPI?.getRemainingSeconds?.();
-
-      if (remaining !== Infinity && remaining <= 0) {
-        // Time is up - show upgrade/sign-in prompt
-        const msg = currentUser
-          ? 'Your free daily limit is used. Upgrade to Pro for unlimited access.'
-          : 'Your free 1-hour daily limit is used. Sign in to sync your usage or upgrade to Pro for unlimited access.';
-
-        alert(msg);
-        return;
-      }
-
-      // Open PDF
       addRecent(filePath);
       const encoded = encodeURIComponent(filePath);
       location.href = `./web/viewer.html?file=${encoded}`;
@@ -641,46 +586,6 @@ try {
     }
   };
 
-  $('upgradeBtn').onclick = async () => {
-    try {
-      const result = await window.electronAPI?.createCheckoutSession?.();
-      if (result?.url) {
-        window.electronAPI?.openExternal?.(result.url);
-      } else if (result?.error) {
-        alert(result.error);
-      }
-    } catch (e) {
-      console.error('Upgrade failed:', e);
-    }
-  };
-
-  $('manageSubBtn').onclick = async () => {
-  try {
-    const result = await window.electronAPI?.manageSubscription?.();
-    if (result?.url) {
-      window.electronAPI?.openExternal?.(result.url);
-    } else if (result?.error) {
-      alert(result.error);
-    }
-  } catch (e) {
-    console.error('Manage subscription failed:', e);
-  }
-};
-
-
-  $('signInBtn').onclick = () => {
-    location.href = './web/auth.html';
-  };
-
-  $('signOutBtn').onclick = async () => {
-    try {
-      await window.electronAPI?.signOut?.();
-      currentUser = null;
-      updateAuthUI();
-    } catch (e) {
-      console.error('Sign out failed:', e);
-    }
-  };
 
   $('clearBtn').onclick = () => {
     if (confirm('Clear all recent files?')) {
@@ -719,53 +624,11 @@ try {
   });
 
 
- // ===== INIT =====
-loadRecents();
-loadUser().then(() => {
-  syncUser();          // Make sure backend knows who's signed in
-  checkEntitlement();  // THEN ask backend if user is Pro
-});
-
-
-async function syncUser() {
-  try {
-    if (!currentUser?.uid || !currentUser?.email) return;
-    await fetch("https://eclipse-pdf-backend.onrender.com/sync-user", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        uid: currentUser.uid,
-        email: currentUser.email,
-        displayName: currentUser.displayName || currentUser.email
-      })
-    });
-  } catch (err) {
-    console.error("❌ Failed to sync user:", err);
-  }
-}
-
+  // ===== INIT =====
+  loadRecents();
 
   // Listen for PDF open events
   window.electronAPI?.onOpenPDF?.(filePath => openPDF(filePath));
-async function checkEntitlement() {
-  try {
-    const remaining = await window.electronAPI?.getRemainingSeconds?.();
-    const isPro = remaining === Infinity;
-
-    if (isPro) {
-      $('manageSubBtn')?.classList.remove('hidden');
-      $('upgradeBtn')?.classList.add('hidden');
-    } else {
-      $('manageSubBtn')?.classList.add('hidden');
-      $('upgradeBtn')?.classList.remove('hidden');
-    }
-  } catch (e) {
-    console.warn('No internet — assuming user is Pro for now');
-    // Just in case we can't reach the server, assume Pro so user is not locked out
-    $('manageSubBtn')?.classList.remove('hidden');
-    $('upgradeBtn')?.classList.add('hidden');
-  }
-}
 
 
 </script>
